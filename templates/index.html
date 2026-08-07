@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ form_title }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+        body { background: #f0f4f8; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        h2 { color: #1f4e78; margin-bottom: 20px; text-align: center; }
+        .form-group { margin-bottom: 16px; position: relative; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; color: #333; font-size: 14px; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1.5px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
+        input:focus { border-color: #1f4e78; }
+        .status-msg { font-size: 13px; margin-top: 5px; font-weight: 600; min-height: 18px; color: #107c41; }
+        .btn-submit { width: 100%; background: #1f4e78; color: white; padding: 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-submit:hover { background: #153552; }
+        .new-field-divider { border-top: 2.5px dashed #107c41; margin-top: 20px; padding-top: 12px; }
+        .new-field-tag { font-size: 11px; background: #e8f5e9; color: #107c41; padding: 2px 8px; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>{{ form_title }}</h2>
+        <form id="student-form" method="POST" action="/form/{{ form_id }}">
+            {% for field in fields %}
+            <div class="form-group" id="group_{{ loop.index0 }}">
+                <div id="tag_{{ loop.index0 }}"></div>
+                <label>{{ field }}</label>
+                <input type="text" 
+                       name="field_{{ loop.index0 }}" 
+                       placeholder="Enter {{ field }}" 
+                       {% if field == id_field %}class="id-field-input"{% endif %}
+                       required>
+                {% if field == id_field %}
+                <div id="status-msg" class="status-msg"></div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn-submit">Submit Details</button>
+        </form>
+    </div>
+
+    <script>
+        const idInput = document.querySelector('.id-field-input');
+        const statusMsg = document.getElementById('status-msg');
+        const allInputs = Array.from(document.querySelectorAll('input[name^="field_"]'));
+
+        function fetchAndFill(val) {
+            document.querySelectorAll('.form-group').forEach(g => g.classList.remove('new-field-divider'));
+            document.querySelectorAll('[id^="tag_"]').forEach(t => t.innerHTML = "");
+
+            if (!val) {
+                statusMsg.innerText = "";
+                return;
+            }
+
+            fetch(`/get-data/{{ form_id }}?value=${encodeURIComponent(val)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.found) {
+                        const formData = data.data;
+                        let firstNewIndex = -1;
+
+                        allInputs.forEach((input, index) => {
+                            const fieldLabel = input.previousElementSibling.innerText;
+                            if (formData[fieldLabel] !== undefined && formData[fieldLabel] !== "") {
+                                input.value = formData[fieldLabel];
+                            } else if (fieldLabel !== "{{ id_field }}") {
+                                if (firstNewIndex === -1) {
+                                    firstNewIndex = index;
+                                }
+                            }
+                        });
+
+                        if (firstNewIndex !== -1) {
+                            statusMsg.style.color = "#107c41";
+                            statusMsg.innerText = "✓ Existing details filled! Complete new fields below.";
+
+                            const groupEl = document.getElementById(`group_${firstNewIndex}`);
+                            const tagEl = document.getElementById(`tag_${firstNewIndex}`);
+                            if (groupEl && tagEl) {
+                                groupEl.classList.add('new-field-divider');
+                                tagEl.innerHTML = `<span class="new-field-tag">🟢 NEW FIELD TO FILL</span>`;
+                            }
+                        } else {
+                            statusMsg.style.color = "#107c41";
+                            statusMsg.innerText = "✓ All existing details auto-filled";
+                        }
+                    } else {
+                        statusMsg.innerText = "";
+                    }
+                })
+                .catch(() => {
+                    statusMsg.innerText = "";
+                });
+        }
+
+        // Enter Key Navigation logic across ALL inputs
+        allInputs.forEach((input, index) => {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+
+                    // If primary field, trigger auto-fill fetch
+                    if (this.classList.contains('id-field-input')) {
+                        fetchAndFill(this.value.trim());
+                    }
+
+                    // Move to the next input box, or submit if at the last box
+                    if (index < allInputs.length - 1) {
+                        allInputs[index + 1].focus();
+                    } else {
+                        document.getElementById('student-form').submit();
+                    }
+                }
+            });
+        });
+
+        if (idInput) {
+            idInput.addEventListener('blur', function() {
+                fetchAndFill(this.value.trim());
+            });
+        }
+    </script>
+</body>
+</html>
