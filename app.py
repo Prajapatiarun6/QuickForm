@@ -1,313 +1,361 @@
+import io
 import json
 import os
 import re
 import secrets
-import sqlite3
-from flask import Flask, render_template, request, redirect, jsonify
-import openpyxl
-from openpyxl.utils import get_column_letter
+from flask import Flask, render_template, request, redirect, jsonify, send_file, session
+import firebase_admin
+from firebase_admin import credentials, firestore
 import pandas as pd
 
 app = Flask(__name__)
-DB_FILE = "app_data.db"
+app.secret_key = secrets.token_hex(16)
+
+# Firebase Setup
+if not firebase_admin._apps:
+    if os.path.exists("firebase_key.json"):
+        cred = credentials.Certificate("firebase_key.json")
+        firebase_admin.initialize_app(cred)
+    else:
+        cred_json = json.loads(os.environ.get("FIREBASE_CONFIG_JSON", "{}"))
+        if cred_json:
+            cred = credentials.Certificate(cred_json)
+            firebase_admin.initialize_app(cred)
+
+db = firestore.client() if firebase_admin._apps else None
 
 
-def get_db():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    return conn
+def clean_username(val):
+    return re.sub(r"\s+", "", str(val or "").strip())
 
 
-def init_db():
-    conn = get_db()
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS forms (
-            form_id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            fields TEXT NOT NULL,
-            filename TEXT NOT NULL,
-            id_field TEXT,
-            status TEXT DEFAULT 'active'
-        )
-    """
-    )
-    conn.commit()
-    conn.close()
+def get_existing_db_fields(form_id):
+    """Firestore से केवल वही फ़ील्ड्स ढूँढता है जो पुराने डेटाबेस में पहले से भरे जा चुके हैं"""
+    existing_keys = set()
+    if db and form_id:
+        resps = db.collection("forms").document(form_id).collection("responses").limit(10).stream()
+        for r in resps:
+            existing_keys.update(r.to_dict().keys())
+    return existing_keys
 
 
-init_db()
+def get_primary_identifier(fields, form_id=None):
+    existing_keys = get_existing_db_fields(form_id)
+    
+    # अगर पुराने डेटाबेस में रिकॉर्ड्स मौजूद हैं, तो यूनिक आईडी सिर्फ पुराने फ़ील्ड्स में से ही चुनी जाएगी!
+    candidate_fields = [f for f in fields if f in existing_keys] if existing_keys else fields
 
-
-def auto_fit_columns(file_path):
-    try:
-        wb = openpyxl.load_workbook(file_path)
-        ws = wb.active
-        for col in ws.columns:
-            max_len = max(len(str(cell.value or "")) for cell in col)
-            col_letter = get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
-        wb.save(file_path)
-    except Exception:
-        pass
-
-
-def get_primary_identifier(fields, excel_file=None):
-    # Strictly prioritize unique keys in order
-    for key in ["email", "phone", "mobile", "roll", "enroll", "name"]:
-        for f in fields:
+    for key in ["phone", "mobile", "email", "enroll", "roll", "id", "name"]:
+        for f in candidate_fields:
             if key in f.lower():
                 return f
-
-    if excel_file and os.path.exists(excel_file):
-        try:
-            df = pd.read_excel(excel_file, dtype=str)
-            existing_cols = [str(c).strip() for c in df.columns]
-            if existing_cols:
-                return existing_cols[0]
-        except Exception:
-            pass
-
-    return fields[0] if fields else None
+    return candidate_fields[0] if candidate_fields else (fields[0] if fields else None)
 
 
 @app.route("/")
 def admin_panel():
-    conn = get_db()
-    rows = conn.execute("SELECT * FROM forms").fetchall()
-    conn.close()
+    if "user_id" not in session:
+        return render_template("admin.html", view="login")
 
+    user_id = session["user_id"]
     existing_forms = {}
-    for r in rows:
-        existing_forms[r["form_id"]] = {
-            "title": r["title"],
-            "fields": json.loads(r["fields"]),
-            "filename": r["filename"],
-            "id_field": r["id_field"],
-            "status": r["status"],
-        }
-    return render_template("admin.html", view="home", existing_forms=existing_forms)
+
+    if db:
+        docs = db.collection("forms").where("user_id", "==", user_id).stream()
+        for doc in docs:
+            fdata = doc.to_dict()
+            resps = db.collection("forms").document(doc.id).collection("responses").stream()
+            fdata["count"] = len(list(resps))
+            existing_forms[doc.id] = fdata
+
+    return render_template("admin.html", view="home", existing_forms=existing_forms, user_id=user_id)
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    user_id = clean_username(request.form.get("user_id"))
+    password = request.form.get("password", "").strip()
+
+    if not user_id or not password or not db:
+        return render_template("admin.html", view="login", error="User ID & Password Required!")
+
+    user_ref = db.collection("users").document(user_id).get()
+
+    if user_ref.exists:
+        if user_ref.to_dict().get("password") == password:
+            session["user_id"] = user_id
+            return redirect("/")
+        else:
+            return render_template("admin.html", view="login", error="Wrong Password!")
+    else:
+        db.collection("users").document(user_id).set({"password": password, "file_prefix": "QuickForm"})
+        session["user_id"] = user_id
+        return redirect("/")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
+
+@app.route("/settings", methods=["GET", "POST"])
+def settings_page():
+    if "user_id" not in session or not db:
+        return redirect("/")
+
+    user_id = session["user_id"]
+    user_ref = db.collection("users").document(user_id)
+
+    if request.method == "POST":
+        new_prefix = request.form.get("file_prefix", "QuickForm").strip()
+        user_ref.update({"file_prefix": new_prefix})
+        return redirect("/settings")
+
+    user_doc = user_ref.get()
+    pwd = user_doc.to_dict().get("password", "******") if user_doc.exists else "******"
+    prefix = user_doc.to_dict().get("file_prefix", "QuickForm") if user_doc.exists else "QuickForm"
+
+    return render_template("admin.html", view="settings", user_id=user_id, password=pwd, prefix=prefix)
 
 
 @app.route("/create-page")
 def create_page():
+    if "user_id" not in session:
+        return redirect("/")
     return render_template("admin.html", view="create", is_edit=False)
 
 
 @app.route("/edit/<form_id>")
 def edit_form(form_id):
-    conn = get_db()
-    r = conn.execute("SELECT * FROM forms WHERE form_id = ?", (form_id,)).fetchone()
-    conn.close()
+    if "user_id" not in session or not db:
+        return redirect("/")
 
-    if r:
+    doc = db.collection("forms").document(form_id).get()
+    if doc.exists and doc.to_dict().get("user_id") == session["user_id"]:
+        data = doc.to_dict()
         return render_template(
             "admin.html",
             view="edit",
             is_edit=True,
             form_id=form_id,
-            edit_title=r["title"],
-            edit_fields=json.loads(r["fields"]),
+            edit_title=data.get("title", ""),
+            edit_fields=data.get("fields", [])
         )
     return redirect("/")
 
 
 @app.route("/create-form", methods=["POST"])
 def create_form():
-    title = request.form.get("form_title", "FormData").strip()
-    clean_title = re.sub(r"\s+", "", title)
-    clean_title = re.sub(r"\W+", "", clean_title) or "FormData"
+    if "user_id" not in session:
+        return redirect("/")
+
+    title = request.form.get("form_title", "QuickForm").strip()
+    clean_title = re.sub(r"\W+", "", title) or "QuickForm"
+    user_id = session["user_id"]
 
     existing_form_id = request.form.get("existing_form_id", "").strip()
-
-    if existing_form_id:
-        form_id = existing_form_id
-    else:
-        unique_suffix = secrets.token_hex(2)
-        form_id = f"{clean_title}_{unique_suffix}"
+    form_id = existing_form_id if existing_form_id else f"{clean_title}_{secrets.token_hex(2)}"
 
     raw_fields = request.form.getlist("custom_fields[]")
     clean_fields = [f.strip() for f in raw_fields if f.strip() != ""]
 
-    excel_filename = f"{form_id}.xlsx"
-    id_field = get_primary_identifier(clean_fields, excel_filename)
-
-    # Force Primary unique field to index 0 (Top position)
-    if id_field and id_field in clean_fields:
-        clean_fields.remove(id_field)
-        clean_fields.insert(0, id_field)
-
-    conn = get_db()
-    conn.execute(
-        """
-        INSERT OR REPLACE INTO forms (form_id, title, fields, filename, id_field, status)
-        VALUES (?, ?, ?, ?, ?, COALESCE((SELECT status FROM forms WHERE form_id=?), 'active'))
-    """,
-        (form_id, clean_title, json.dumps(clean_fields), excel_filename, id_field, form_id),
-    )
-    conn.commit()
-    conn.close()
-
-    if os.path.exists(excel_filename):
-        try:
-            df = pd.read_excel(excel_filename, dtype=str).fillna("")
-            for col in clean_fields:
-                if col not in df.columns:
-                    df[col] = ""
-            df = df[clean_fields]
-        except Exception:
-            df = pd.DataFrame(columns=clean_fields)
-    else:
-        df = pd.DataFrame(columns=clean_fields)
-
-    try:
-        df.to_excel(excel_filename, index=False)
-        auto_fit_columns(excel_filename)
-    except PermissionError:
-        return "<h2 style='text-align: center; color: red;'>⚠️ Please close Excel on your laptop before saving!</h2>", 500
+    if db:
+        db.collection("forms").document(form_id).set({
+            "title": clean_title,
+            "fields": clean_fields,
+            "user_id": user_id,
+            "status": "active"
+        }, merge=True)
 
     form_url = f"{request.host_url}form/{form_id}"
+    wa_share_url = f"https://api.whatsapp.com/send?text=Please%20fill%20this%20form:%20{form_url}"
 
-    return f"""
-    <div style="font-family: Arial, sans-serif; text-align: center; padding: 40px;">
-        <h2>✅ Form Saved Successfully!</h2>
-        <p>Form Title: <b>{clean_title}</b></p>
-        <p>Shareable Link:</p>
-        <p><a href="{form_url}" target="_blank" style="font-size: 18px; color: #1f4e78; font-weight: bold;">{form_url}</a></p>
-        <br><br>
-        <a href="/" style="background: #1f4e78; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">🏠 Back to Dashboard</a>
-    </div>
-    """
+    return render_template(
+        "admin.html",
+        view="success",
+        clean_title=clean_title,
+        form_url=form_url,
+        wa_share_url=wa_share_url
+    )
+
+
+@app.route("/view-data/<form_id>")
+def view_data(form_id):
+    if "user_id" not in session or not db:
+        return redirect("/")
+
+    doc = db.collection("forms").document(form_id).get()
+    if not doc.exists or doc.to_dict().get("user_id") != session["user_id"]:
+        return redirect("/")
+
+    fdata = doc.to_dict()
+    responses_ref = db.collection("forms").document(form_id).collection("responses").stream()
+    responses = [r.to_dict() for r in responses_ref]
+
+    return render_template(
+        "admin.html",
+        view="view_data",
+        form_title=fdata.get("title"),
+        fields=fdata.get("fields", []),
+        responses=responses,
+        form_id=form_id
+    )
+
+
+@app.route("/download-excel/<form_id>")
+def download_excel(form_id):
+    if "user_id" not in session or not db:
+        return redirect("/")
+
+    user_doc = db.collection("users").document(session["user_id"]).get()
+    prefix = user_doc.to_dict().get("file_prefix", "QuickForm") if user_doc.exists else "QuickForm"
+
+    form_doc = db.collection("forms").document(form_id).get()
+    title = form_doc.to_dict().get("title", form_id) if form_doc.exists else form_id
+
+    responses_ref = db.collection("forms").document(form_id).collection("responses").stream()
+    data = [doc.to_dict() for doc in responses_ref]
+
+    if not data:
+        return "<script>alert('No data submitted yet!'); window.location.href='/';</script>"
+
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Responses")
+
+    output.seek(0)
+    return send_file(output, download_name=f"{prefix}_{title}.xlsx", as_attachment=True)
 
 
 @app.route("/toggle-status/<form_id>", methods=["POST"])
 def toggle_status(form_id):
-    conn = get_db()
-    r = conn.execute("SELECT status FROM forms WHERE form_id = ?", (form_id,)).fetchone()
-    if r:
-        new_status = "closed" if r["status"] == "active" else "active"
-        conn.execute("UPDATE forms SET status = ? WHERE form_id = ?", (new_status, form_id))
-        conn.commit()
-    conn.close()
+    if "user_id" not in session or not db:
+        return redirect("/")
+
+    doc_ref = db.collection("forms").document(form_id)
+    doc = doc_ref.get()
+    if doc.exists and doc.to_dict().get("user_id") == session["user_id"]:
+        curr_status = doc.to_dict().get("status", "active")
+        new_status = "closed" if curr_status == "active" else "active"
+        doc_ref.update({"status": new_status})
+
     return redirect("/")
 
 
 @app.route("/delete-form/<form_id>", methods=["POST"])
 def delete_form(form_id):
-    conn = get_db()
-    conn.execute("DELETE FROM forms WHERE form_id = ?", (form_id,))
-    conn.commit()
-    conn.close()
+    if "user_id" not in session or not db:
+        return redirect("/")
+
+    doc = db.collection("forms").document(form_id).get()
+    if doc.exists and doc.to_dict().get("user_id") == session["user_id"]:
+        db.collection("forms").document(form_id).delete()
+
     return redirect("/")
 
 
-@app.route("/get-data/<form_id>")
-def get_student_data(form_id):
-    query_val = request.args.get("value", "").strip().lower()
-    conn = get_db()
-    r = conn.execute("SELECT * FROM forms WHERE form_id = ?", (form_id,)).fetchone()
-    conn.close()
+@app.route("/verify-data/<form_id>", methods=["POST"])
+def verify_data(form_id):
+    if not db:
+        return jsonify({"found": False})
 
-    if r and r["status"] == "active" and query_val:
-        excel_file = r["filename"]
-        id_field = r["id_field"]
-        if os.path.exists(excel_file) and id_field:
-            try:
-                df = pd.read_excel(excel_file, dtype=str).fillna("")
-                match_col = next(
-                    (col for col in df.columns if id_field.lower() in str(col).lower()),
-                    None,
-                )
-                if match_col:
-                    match = df[df[match_col].astype(str).str.strip().str.lower() == query_val]
-                    if not match.empty:
-                        row_data = match.iloc[0].to_dict()
-                        return jsonify({"found": True, "data": row_data})
-            except Exception:
-                pass
-    return jsonify({"found": False})
+    req_data = request.json or {}
+    p_val = req_data.get("primary", "").strip().lower()
+    s_val = req_data.get("secondary", "").strip().lower()
+
+    if not p_val:
+        return jsonify({"found": False})
+
+    responses_ref = db.collection("forms").document(form_id).collection("responses").stream()
+    all_resps = [r.to_dict() for r in responses_ref]
+
+    p_matches = []
+    for r in all_resps:
+        vals = [str(v).strip().lower() for v in r.values()]
+        if p_val in vals:
+            p_matches.append(r)
+
+    if not p_matches:
+        return jsonify({"found": False})
+
+    if len(p_matches) == 1 and not s_val:
+        return jsonify({"found": True, "data": p_matches[0]})
+
+    if s_val:
+        s_matches = []
+        for r in p_matches:
+            vals = [str(v).strip().lower() for v in r.values()]
+            if s_val in vals:
+                s_matches.append(r)
+
+        if len(s_matches) >= 1:
+            return jsonify({"found": True, "data": s_matches[0]})
+
+    return jsonify({"found": False, "needs_secondary": True})
 
 
 @app.route("/form/<form_id>", methods=["GET", "POST"])
 def student_form(form_id):
-    conn = get_db()
-    r = conn.execute("SELECT * FROM forms WHERE form_id = ?", (form_id,)).fetchone()
-    conn.close()
+    if not db:
+        return "Database Error", 500
 
-    if not r:
-        return "<h2 style='text-align:center;'>❌ Form Not Found!</h2>", 404
+    form_doc = db.collection("forms").document(form_id).get()
+    if not form_doc.exists:
+        return "❌ Form Not Found", 404
 
-    if r["status"] != "active":
-        return """
-        <div style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-            <h2 style='color: #d9534f;'>🔒 Submissions Closed</h2>
-            <p style='color: #666;'>This form is no longer accepting responses.</p>
-        </div>
-        """, 403
+    form_data = form_doc.to_dict()
+    if form_data.get("status") == "closed":
+        return "<h2 style='text-align: center; color: #dc2626; margin-top: 50px;'>🔒 Submissions Closed for this Form</h2>", 403
 
-    fields = json.loads(r["fields"])
-    title = r["title"]
-    excel_file = r["filename"]
-    id_field = get_primary_identifier(fields, excel_file)
-
-    # Force Primary Identifier at top position
-    if id_field and id_field in fields:
-        fields.remove(id_field)
-        fields.insert(0, id_field)
+    fields = list(form_data.get("fields", []))
+    
+    # पुराना भरा हुआ फ़ील्ड ही टॉप (Index 0) बनेगा, नया फ़ील्ड नहीं!
+    primary_id = get_primary_identifier(fields, form_id)
+    if primary_id and primary_id in fields:
+        fields.remove(primary_id)
+        fields.insert(0, primary_id)
 
     if request.method == "POST":
-        submitted_data = {}
-        for idx, field_name in enumerate(fields):
+        submission = {}
+        for idx, field in enumerate(fields):
             val = request.form.get(f"field_{idx}", "").strip()
-            if "name" in field_name.lower():
+            
+            # STRICT EMAIL VALIDATION
+            if "email" in field.lower() and val:
+                val = val.lower()
+                if not re.match(r"^[^@]+@[^@]+\.[^@]+$", val):
+                    return "<h2 style='text-align: center; color: #dc2626; margin-top: 50px;'>❌ Invalid Email Address! Must contain '@' and domain (e.g., name@gmail.com)</h2>", 400
+
+            if "name" in field.lower():
                 val = val.title()
-            submitted_data[field_name] = str(val)
+            submission[field] = val
 
-        for key, value in submitted_data.items():
-            if "email" in key.lower() and value:
-                if not re.match(r"^[^@]+@[^@]+\.[^@]+$", value):
-                    return "<h2 style='color: red; text-align: center;'>❌ Invalid Email Address! Please go back and correct it.</h2>"
+        first_val = submission.get(fields[0], "").strip().lower() if fields else ""
+        responses_ref = db.collection("forms").document(form_id).collection("responses").stream()
+        
+        match_doc = None
+        for rdoc in responses_ref:
+            rdata = rdoc.to_dict()
+            vals = [str(v).strip().lower() for v in rdata.values()]
+            if first_val and first_val in vals:
+                match_doc = rdoc
+                break
 
-        id_val = submitted_data.get(id_field, "").strip().lower() if id_field else None
-
-        if os.path.exists(excel_file):
-            try:
-                df = pd.read_excel(excel_file, dtype=str).fillna("")
-            except Exception:
-                df = pd.DataFrame(columns=fields)
-
-            df = df.astype(str)
-
-            match_col = next(
-                (col for col in df.columns if id_field and id_field.lower() in str(col).lower()),
-                None,
-            )
-            if match_col and id_val and id_val in df[match_col].astype(str).str.strip().str.lower().values:
-                row_idx = df[df[match_col].astype(str).str.strip().str.lower() == id_val].index[0]
-                for key, val in submitted_data.items():
-                    if val:
-                        df.at[row_idx, key] = str(val)
-            else:
-                new_row = pd.DataFrame([submitted_data]).astype(str)
-                df = pd.concat([df, new_row], ignore_index=True)
+        if match_doc:
+            match_doc.reference.set(submission, merge=True)
         else:
-            df = pd.DataFrame([submitted_data]).astype(str)
+            db.collection("forms").document(form_id).collection("responses").add(submission)
 
-        try:
-            df.to_excel(excel_file, index=False)
-            auto_fit_columns(excel_file)
-        except PermissionError:
-            return "<h2 style='text-align: center; color: #d9534f;'>⚠️ System Busy: Excel file is open on Admin laptop. Please close it and retry.</h2>", 500
+        return """
+        <div style="font-family: sans-serif; text-align: center; padding: 40px; max-width: 450px; margin: auto;">
+            <h2 style="color: #16a34a;">✅ Response Saved Successfully!</h2>
+            <p style="color: #64748b; margin-top: 10px;">Your response has been recorded.</p>
+        </div>
+        """
 
-        return "<h2 style='text-align: center; color: green;'>✅ Response Submitted Successfully!</h2>"
-
-    return render_template(
-        "index.html",
-        form_title=title,
-        fields=fields,
-        form_id=form_id,
-        id_field=id_field,
-    )
+    return render_template("index.html", form_title=form_data.get("title"), fields=fields, form_id=form_id)
 
 
 if __name__ == "__main__":

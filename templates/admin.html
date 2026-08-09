@@ -2,118 +2,263 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QuickForm Admin</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
-        body { background: #eef2f7; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 600px; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2, h3 { color: #1f4e78; margin-bottom: 15px; }
-        .btn-main { display: block; width: 100%; background: #1f4e78; color: white; padding: 14px; text-align: center; font-weight: bold; text-decoration: none; border-radius: 8px; margin-bottom: 10px; font-size: 15px; border: none; cursor: pointer; }
-        .btn-main:hover { background: #153552; }
-        .form-group { margin-bottom: 18px; }
-        label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; font-size: 14px; }
-        input[type="text"] { flex: 1; padding: 10px 12px; border: 1.5px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
-        .field-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
-        .btn-row-del { background: #d9534f; color: white; border: none; padding: 10px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
-        .btn-row-del:hover { background: #c9302c; }
-        .btn-add-field { background: #28a745; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; margin-top: 5px; width: 100%; }
-        .btn-add-field:hover { background: #218838; }
-        .existing-item { background: #f8f9fa; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-        .existing-item a.link { color: #1f4e78; font-weight: bold; text-decoration: none; font-size: 13px; }
-        .actions { display: flex; gap: 6px; }
-        .btn-sm { padding: 6px 10px; text-decoration: none; border-radius: 5px; font-size: 12px; font-weight: bold; border: none; cursor: pointer; color: white; }
-        .btn-edit { background: #107c41; }
-        .btn-close { background: #d9534f; }
-        .btn-open { background: #28a745; }
-        .btn-del { background: #6c757d; }
-        .status-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; color: white; font-weight: bold; }
-        .bg-active { background: #28a745; }
-        .bg-closed { background: #d9534f; }
-        .back-link { display: inline-block; margin-bottom: 15px; color: #1f4e78; text-decoration: none; font-weight: bold; font-size: 14px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #f8fafc; color: #0f172a; padding: 12px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 480px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .header h2 { font-size: 1.4rem; font-weight: 800; color: #1e3a8a; }
+        .settings-btn { font-size: 1.3rem; text-decoration: none; padding: 6px; border-radius: 50%; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; }
+
+        .card { background: white; padding: 18px; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 14px; }
+        
+        input[type="text"], input[type="password"] { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 15px; margin-bottom: 12px; outline: none; }
+        input:focus { border-color: #2563eb; }
+
+        .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; font-size: 15px; }
+        .btn-primary { background: #1e3a8a; color: white; }
+        .btn-create { background: #16a34a; color: white; margin-bottom: 14px; font-size: 15px; }
+        .btn-wa { background: #25D366; color: white; margin-bottom: 10px; }
+
+        .form-item { background: #ffffff; border: 1.5px solid #cbd5e1; padding: 14px; border-radius: 12px; margin-bottom: 12px; position: relative; }
+        .form-top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+        .form-title { font-size: 1.2rem; font-weight: 800; color: #0f172a; word-break: break-word; }
+        
+        .badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase; margin-left: 6px; }
+        .badge-active { background: #dcfce7; color: #15803d; }
+        .badge-closed { background: #fee2e2; color: #b91c1c; }
+
+        .form-link-box { display: flex; align-items: center; justify-content: space-between; background: #f1f5f9; padding: 8px 10px; border-radius: 6px; margin: 8px 0; border: 1px solid #e2e8f0; }
+        .form-url { color: #2563eb; font-weight: 600; text-decoration: none; font-size: 12px; word-break: break-all; }
+        .btn-copy { background: #1e3a8a; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; margin-left: 6px; flex-shrink: 0; }
+
+        .sub-count { font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 10px; }
+
+        .controls-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+        .btn-edit-out { background: #eab308; color: #0f172a; padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 700; text-decoration: none; display: inline-block; }
+
+        .dots-container { position: relative; }
+        .btn-dots { background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 18px; font-weight: bold; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; color: #334155; }
+        .dots-menu { display: none; position: absolute; right: 0; bottom: 40px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); width: 170px; z-index: 100; overflow: hidden; }
+        .dots-menu.show { display: block; }
+        .dots-menu a, .dots-menu button { display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #334155; background: none; border: none; text-decoration: none; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+        .dots-menu a:hover, .dots-menu button:hover { background: #f8fafc; }
+        .dots-menu .btn-del-menu { color: #dc2626; }
+
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 12px; border-radius: 8px; border: 1px solid #cbd5e1; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; background: white; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+        th { background: #1e3a8a; color: white; font-weight: 700; }
+
+        .field-row { display: flex; gap: 6px; margin-bottom: 6px; }
+        .error-msg { color: #dc2626; font-size: 13px; margin-bottom: 10px; font-weight: 600; }
+        .nav-link { color: #1e3a8a; text-decoration: none; font-weight: 700; font-size: 14px; }
     </style>
 </head>
 <body>
-
     <div class="container">
 
-        {% if view == 'home' %}
-        <div class="card">
-            <h2>⚙️ Admin Dashboard</h2>
-            <a href="/create-page" class="btn-main">➕ Create New Form</a>
+        <!-- LOGIN -->
+        {% if view == 'login' %}
+        <div class="card" style="margin-top: 40px;">
+            <h2 style="text-align: center; margin-bottom: 15px; color: #1e3a8a;">🔒 QuickForm Login</h2>
+            {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+            <form action="/login" method="POST">
+                <label style="font-size: 12px; color: #64748b; font-weight: 600;">User ID (No spaces)</label>
+                <input type="text" name="user_id" placeholder="Enter User ID" oninput="this.value=this.value.replace(/\s+/g,'')" required>
+                
+                <label style="font-size: 12px; color: #64748b; font-weight: 600;">Password</label>
+                <input type="password" name="password" placeholder="Enter Password" required>
+                
+                <button type="submit" class="btn btn-primary">Login / Register</button>
+            </form>
         </div>
 
-        {% if existing_forms %}
-        <div class="card">
-            <h3>📋 Form Management</h3>
-            {% for fid, fdata in existing_forms.items() %}
-            <div class="existing-item">
-                <div>
-                    <strong>{{ fdata.title }}</strong> 
-                    <span class="status-badge {{ 'bg-active' if fdata.status == 'active' else 'bg-closed' }}">
-                        {{ fdata.status.upper() }}
-                    </span><br>
-                    <a href="/form/{{ fid }}" target="_blank" class="link">/form/{{ fid }}</a>
-                </div>
-                <div class="actions">
-                    <a href="/edit/{{ fid }}" class="btn-sm btn-edit">✏️ Edit</a>
-                    
-                    <form action="/toggle-status/{{ fid }}" method="POST" style="display:inline;">
-                        {% if fdata.status == 'active' %}
-                        <button type="submit" class="btn-sm btn-close" onclick="return confirm('Are you sure?')">🔒 Close</button>
-                        {% else %}
-                        <button type="submit" class="btn-sm btn-open">🔓 Re-open</button>
-                        {% endif %}
-                    </form>
-
-                    <form action="/delete-form/{{ fid }}" method="POST" style="display:inline;">
-                        <button type="submit" class="btn-sm btn-del" onclick="return confirm('Are you sure?')">🗑️ Delete</button>
-                    </form>
-                </div>
+        <!-- SAVE & SHARE SUCCESS -->
+        {% elif view == 'success' %}
+        <div class="card" style="text-align: center;">
+            <h2 style="color: #16a34a; margin-bottom: 10px;">✅ Form Saved Successfully!</h2>
+            <p style="font-size: 15px; margin-bottom: 15px;">Title: <b>{{ clean_title }}</b></p>
+            
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 5px;">Shareable Link:</p>
+            <div class="form-link-box" style="justify-content: center; margin-bottom: 20px;">
+                <a href="{{ form_url }}" target="_blank" class="form-url" style="font-size: 14px;">{{ form_url }}</a>
             </div>
-            {% endfor %}
-        </div>
-        {% endif %}
 
-        {% else %}
-        <a href="/" class="back-link">← Back to Main Dashboard</a>
+            <a href="{{ wa_share_url }}" target="_blank" class="btn btn-wa">📲 Share on WhatsApp</a>
+            <a href="/" class="btn btn-primary">🏠 Back to Dashboard</a>
+        </div>
+
+        <!-- DASHBOARD -->
+        {% elif view == 'home' %}
+        <div class="header">
+            <h2>⚡ QuickForm</h2>
+            <a href="/settings" class="settings-btn" title="Settings">⚙️</a>
+        </div>
+
+        <a href="/create-page" class="btn btn-create">➕ Create Form</a>
 
         <div class="card">
-            <h2>{{ 'Edit Form' if is_edit else 'Create New Form' }}</h2>
-
-            <form action="/create-form" method="POST">
-                {% if is_edit %}
-                <input type="hidden" name="existing_form_id" value="{{ form_id }}">
-                {% endif %}
-
-                <div class="form-group">
-                    <label>Form Title (No Spaces Allowed)</label>
-                    <input type="text" name="form_title" id="form_title_input" placeholder="EnterFormTitle" value="{{ edit_title if is_edit else '' }}" autofocus required oninput="this.value = this.value.replace(/\s+/g, '')" onkeydown="if(event.key === ' ') return false;" style="width: 100%;">
-                </div>
-
-                <div class="form-group">
-                    <label>Form Fields</label>
-                    <div id="fields-container">
-                        {% if is_edit and edit_fields %}
-                            {% for f in edit_fields %}
-                            <div class="field-row">
-                                <input type="text" name="custom_fields[]" value="{{ f }}" required>
-                                <button type="button" class="btn-row-del" onclick="removeSlot(this)">Delete</button>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="field-row">
-                                <input type="text" name="custom_fields[]" placeholder="Field Name (e.g. Name, Phone)" required>
-                                <button type="button" class="btn-row-del" onclick="removeSlot(this)">Delete</button>
-                            </div>
-                        {% endif %}
+            <h3 style="font-size: 1.05rem; color: #1e293b; margin-bottom: 12px;">📋 Your Forms</h3>
+            {% if existing_forms %}
+                {% for fid, fdata in existing_forms.items() %}
+                <div class="form-item">
+                    <div class="form-top-row">
+                        <div class="form-title">
+                            {{ fdata.title }}
+                            <span class="badge {{ 'badge-active' if fdata.get('status','active') == 'active' else 'badge-closed' }}">
+                                {{ fdata.get('status','active') }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-link-box">
+                        <a href="/form/{{ fid }}" target="_blank" class="form-url">{{ request.host_url }}form/{{ fid }}</a>
+                        <button class="btn-copy" onclick="copyLink('{{ request.host_url }}form/{{ fid }}')">📋 Copy</button>
                     </div>
 
-                    <button type="button" class="btn-add-field" onclick="addNewField()">➕ Add New Field</button>
+                    <div class="sub-count">📊 Submissions: {{ fdata.count }}</div>
+                    
+                    <div class="controls-row">
+                        <a href="/edit/{{ fid }}" class="btn-edit-out">✏️ Edit</a>
+                        
+                        <div class="dots-container">
+                            <button class="btn-dots" onclick="toggleMenu('menu-{{ fid }}')">⋮</button>
+                            <div id="menu-{{ fid }}" class="dots-menu">
+                                <a href="/view-data/{{ fid }}">👁️ View Data</a>
+                                <a href="/download-excel/{{ fid }}">📥 Download Data</a>
+                                
+                                <form action="/toggle-status/{{ fid }}" method="POST">
+                                    {% if fdata.get('status','active') == 'active' %}
+                                    <button type="submit">🔒 Close Form</button>
+                                    {% else %}
+                                    <button type="submit">🔓 Re-open Form</button>
+                                    {% endif %}
+                                </form>
+
+                                <form action="/delete-form/{{ fid }}" method="POST" onsubmit="return confirm('Delete this form?');">
+                                    <button type="submit" class="btn-del-menu">🗑️ Delete Form</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="font-size: 13px; color: #64748b; text-align: center;">No forms created yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- VIEW DATA -->
+        {% elif view == 'view_data' %}
+        <a href="/" class="nav-link">← Back to Dashboard</a>
+        <br><br>
+        <div class="card">
+            <h2 style="font-size: 1.25rem;">📊 Data: {{ form_title }}</h2>
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px; margin-bottom: 12px;">Total Submissions: {{ responses|length }}</p>
+            
+            <a href="/download-excel/{{ form_id }}" class="btn btn-create" style="background:#16a34a; font-size:13px; padding:10px;">📥 Download Data</a>
+
+            {% if responses %}
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            {% for field in fields %}
+                            <th>{{ field }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for resp in responses %}
+                        <tr>
+                            {% for field in fields %}
+                            <td>{{ resp.get(field, '') }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="font-size: 13px; color: #64748b; margin-top: 15px;">No responses submitted yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- SETTINGS -->
+        {% elif view == 'settings' %}
+        <a href="/" class="nav-link">← Back to Dashboard</a>
+        <br><br>
+        
+        <div class="card" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; border: none;">
+            <h3 style="color: white; margin-bottom: 6px;">⚙️ QuickForm Settings</h3>
+            <p style="font-size: 12px; opacity: 0.9;">Manage account & download folder prefix</p>
+        </div>
+
+        <div class="card">
+            <h4 style="font-size: 14px; color: #1e3a8a; margin-bottom: 10px;">👤 Account Details</h4>
+            <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                <span style="font-size: 12px; color: #64748b;">User ID:</span>
+                <p style="font-weight: 700; color: #0f172a;">{{ user_id }}</p>
+            </div>
+            <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                <span style="font-size: 12px; color: #64748b;">Password:</span>
+                <p style="font-weight: 700; color: #0f172a;">{{ password }}</p>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
+
+            <h4 style="font-size: 14px; color: #16a34a; margin-bottom: 10px;">📁 Download Name Prefix</h4>
+            <form action="/settings" method="POST">
+                <label style="font-size: 12px; color: #64748b; font-weight: 600;">File Name Prefix</label>
+                <input type="text" name="file_prefix" value="{{ prefix }}" placeholder="QuickForm" required>
+                
+                <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 8px 10px; border-radius: 4px; margin-bottom: 12px; font-size: 11px; color: #0369a1;">
+                    💡 Saved files will be named <b><code>{{ prefix }}_Title.xlsx</code></b> in your Downloads folder!
                 </div>
 
-                <button type="submit" class="btn-main" style="margin-top: 20px;">🔗 {{ 'Update Form' if is_edit else 'Save & Generate Link' }}</button>
+                <button type="submit" class="btn btn-primary" style="background: #16a34a;">💾 Save Setting</button>
+            </form>
+            
+            <br>
+            <a href="/logout" class="btn btn-primary" style="background: #dc2626;">Logout Account</a>
+        </div>
+
+        <!-- CREATE / EDIT -->
+        {% elif view == 'create' or view == 'edit' %}
+        <a href="/" class="nav-link">← Back to Dashboard</a>
+        <br><br>
+        <div class="card">
+            <h3>{{ 'Edit Form' if is_edit else 'Create Form' }}</h3>
+            <br>
+            <form action="/create-form" method="POST" id="main-form">
+                {% if is_edit %}<input type="hidden" name="existing_form_id" value="{{ form_id }}">{% endif %}
+
+                <label style="font-size: 12px; color: #64748b; font-weight: 600;">Form Title</label>
+                <input type="text" name="form_title" value="{{ edit_title if is_edit else '' }}" placeholder="Enter Form Title" required>
+
+                <label style="font-size: 12px; color: #64748b; font-weight: 600;">Form Fields</label>
+                <div id="fields-container">
+                    {% if is_edit and edit_fields %}
+                        {% for f in edit_fields %}
+                        <div class="field-row">
+                            <input type="text" name="custom_fields[]" value="{{ f }}" required>
+                            <button type="button" class="btn-dots" style="color:#dc2626; width:38px;" onclick="removeSlot(this)">X</button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="field-row">
+                            <input type="text" name="custom_fields[]" placeholder="Field Name (e.g. City, State, Name)" required>
+                            <button type="button" class="btn-dots" style="color:#dc2626; width:38px;" onclick="removeSlot(this)">X</button>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <button type="button" class="btn btn-create" style="margin-top: 5px; background:#0284c7;" onclick="addNewField()">+ Add Field</button>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Save & Share Link</button>
             </form>
         </div>
         {% endif %}
@@ -121,34 +266,37 @@
     </div>
 
     <script>
-        const container = document.getElementById('fields-container');
-
-        if (container) {
-            container.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' && e.target.name === 'custom_fields[]') {
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                const target = e.target;
+                if (target && (target.name === 'custom_fields[]' || target.name === 'form_title')) {
                     e.preventDefault();
-                    if (e.target.value.trim() !== '') {
+                    
+                    if (target.name === 'custom_fields[]' && target.value.trim() !== '') {
                         addNewField();
+                    } else if (target.name === 'form_title') {
+                        const firstInput = document.querySelector('input[name="custom_fields[]"]');
+                        if (firstInput) firstInput.focus();
                     }
+                    return false;
                 }
-            });
-        }
+            }
+        });
 
         function addNewField() {
-            const count = container.querySelectorAll('.field-row').length + 1;
-            const newRow = document.createElement('div');
-            newRow.className = 'field-row';
-            
-            newRow.innerHTML = `
-                <input type="text" name="custom_fields[]" placeholder="Field ${count} Name" required>
-                <button type="button" class="btn-row-del" onclick="removeSlot(this)">Delete</button>
-            `;
-            
-            container.appendChild(newRow);
-            newRow.querySelector('input').focus();
+            const container = document.getElementById('fields-container');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'field-row';
+            div.innerHTML = `<input type="text" name="custom_fields[]" placeholder="Field Name" required><button type="button" class="btn-dots" style="color:#dc2626; width:38px;" onclick="removeSlot(this)">X</button>`;
+            container.appendChild(div);
+            const newInput = div.querySelector('input');
+            if (newInput) newInput.focus();
         }
 
         function removeSlot(btn) {
+            const container = document.getElementById('fields-container');
+            if (!container) return;
             const rows = container.querySelectorAll('.field-row');
             if (rows.length > 1) {
                 btn.parentElement.remove();
@@ -156,7 +304,25 @@
                 alert("Form must have at least one field!");
             }
         }
-    </script>
 
+        function toggleMenu(id) {
+            document.querySelectorAll('.dots-menu').forEach(m => {
+                if(m.id !== id) m.classList.remove('show');
+            });
+            const menu = document.getElementById(id);
+            if(menu) menu.classList.toggle('show');
+        }
+
+        document.addEventListener('click', function(e) {
+            if(!e.target.classList.contains('btn-dots')) {
+                document.querySelectorAll('.dots-menu').forEach(m => m.classList.remove('show'));
+            }
+        });
+
+        function copyLink(text) {
+            navigator.clipboard.writeText(text);
+            alert("Link copied to clipboard!");
+        }
+    </script>
 </body>
 </html>

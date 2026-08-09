@@ -2,3 +2,4 @@ venv/
 *.db
 *.xlsx
 __pycache__/
+firebase_key.json

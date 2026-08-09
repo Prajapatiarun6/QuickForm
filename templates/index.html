@@ -2,38 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ form_title }}</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
-        body { background: #f0f4f8; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
-        h2 { color: #1f4e78; margin-bottom: 20px; text-align: center; }
-        .form-group { margin-bottom: 16px; position: relative; }
-        label { display: block; font-weight: 600; margin-bottom: 6px; color: #333; font-size: 14px; }
-        input[type="text"] { width: 100%; padding: 12px; border: 1.5px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; }
-        input:focus { border-color: #1f4e78; }
-        .status-msg { font-size: 13px; margin-top: 5px; font-weight: 600; min-height: 18px; color: #107c41; }
-        .btn-submit { width: 100%; background: #1f4e78; color: white; padding: 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        .btn-submit:hover { background: #153552; }
-        .new-field-divider { border-top: 2.5px dashed #107c41; margin-top: 20px; padding-top: 12px; }
-        .new-field-tag { font-size: 11px; background: #e8f5e9; color: #107c41; padding: 2px 8px; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 6px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #f1f5f9; padding: 15px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: white; padding: 25px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); width: 100%; max-width: 440px; border: 1px solid #e2e8f0; }
+        h2 { color: #1e3a8a; margin-bottom: 20px; text-align: center; font-size: 1.3rem; font-weight: 800; }
+        .form-group { margin-bottom: 14px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; color: #334155; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 15px; outline: none; }
+        input:focus { border-color: #2563eb; }
+        .btn-submit { width: 100%; background: #1e3a8a; color: white; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .status-msg { font-size: 12px; font-weight: 600; margin-top: 5px; min-height: 18px; }
+        .new-field-badge { display: inline-block; background: #dcfce7; color: #15803d; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-bottom: 4px; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>{{ form_title }}</h2>
+
         <form id="student-form" method="POST" action="/form/{{ form_id }}">
             {% for field in fields %}
             <div class="form-group" id="group_{{ loop.index0 }}">
-                <div id="tag_{{ loop.index0 }}"></div>
-                <label>{{ field }}</label>
+                <label id="label_{{ loop.index0 }}">{{ field }}</label>
                 <input type="text" 
                        name="field_{{ loop.index0 }}" 
+                       id="input_{{ loop.index0 }}" 
                        placeholder="Enter {{ field }}" 
-                       {% if field == id_field %}class="id-field-input"{% endif %}
                        required>
-                {% if field == id_field %}
+                {% if loop.first %}
                 <div id="status-msg" class="status-msg"></div>
                 {% endif %}
             </div>
@@ -43,72 +41,142 @@
     </div>
 
     <script>
-        const idInput = document.querySelector('.id-field-input');
+        const firstInput = document.getElementById('input_0');
+        const secondInput = document.getElementById('input_1');
         const statusMsg = document.getElementById('status-msg');
         const allInputs = Array.from(document.querySelectorAll('input[name^="field_"]'));
+        const fieldsList = {{ fields | tojson }};
+        let isMultipleMatches = false;
 
-        function fetchAndFill(val) {
-            document.querySelectorAll('.form-group').forEach(g => g.classList.remove('new-field-divider'));
-            document.querySelectorAll('[id^="tag_"]').forEach(t => t.innerHTML = "");
-
-            if (!val) {
-                statusMsg.innerText = "";
-                return;
-            }
-
-            fetch(`/get-data/{{ form_id }}?value=${encodeURIComponent(val)}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.found) {
-                        const formData = data.data;
-                        let firstNewIndex = -1;
-
-                        allInputs.forEach((input, index) => {
-                            const fieldLabel = input.previousElementSibling.innerText;
-                            if (formData[fieldLabel] !== undefined && formData[fieldLabel] !== "") {
-                                input.value = formData[fieldLabel];
-                            } else if (fieldLabel !== "{{ id_field }}") {
-                                if (firstNewIndex === -1) {
-                                    firstNewIndex = index;
-                                }
-                            }
-                        });
-
-                        if (firstNewIndex !== -1) {
-                            statusMsg.style.color = "#107c41";
-                            statusMsg.innerText = "✓ Existing details filled! Complete new fields below.";
-
-                            const groupEl = document.getElementById(`group_${firstNewIndex}`);
-                            const tagEl = document.getElementById(`tag_${firstNewIndex}`);
-                            if (groupEl && tagEl) {
-                                groupEl.classList.add('new-field-divider');
-                                tagEl.innerHTML = `<span class="new-field-tag">🟢 NEW FIELD TO FILL</span>`;
-                            }
-                        } else {
-                            statusMsg.style.color = "#107c41";
-                            statusMsg.innerText = "✓ All existing details auto-filled";
-                        }
-                    } else {
-                        statusMsg.innerText = "";
-                    }
-                })
-                .catch(() => {
-                    statusMsg.innerText = "";
-                });
+        function resetVisibility() {
+            fieldsList.forEach((_, index) => {
+                const groupEl = document.getElementById(`group_${index}`);
+                if (groupEl) groupEl.style.display = 'block';
+                const labelEl = document.getElementById(`label_${index}`);
+                if (labelEl) labelEl.innerHTML = fieldsList[index];
+            });
+            if (statusMsg) statusMsg.innerText = "";
         }
 
-        // Enter Key Navigation logic across ALL inputs
+        function checkPrimary(pVal) {
+            if (!pVal) {
+                resetVisibility();
+                isMultipleMatches = false;
+                return;
+            }
+            fetch('/verify-data/{{ form_id }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ primary: pVal })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.found) {
+                    fillFormAndHideFilled(data.data);
+                    isMultipleMatches = false;
+                } else if (data.needs_secondary) {
+                    isMultipleMatches = true;
+                    if (statusMsg) {
+                        statusMsg.style.color = "#d97706";
+                        statusMsg.innerText = "⚠️ Multiple records match! Fill next detail to verify.";
+                    }
+                } else {
+                    resetVisibility();
+                    isMultipleMatches = false;
+                }
+            });
+        }
+
+        function checkSecondary() {
+            if (!isMultipleMatches || !firstInput) return;
+            const pVal = firstInput.value.trim();
+            const sVal = secondInput ? secondInput.value.trim() : "";
+            if (!pVal || !sVal) return;
+
+            fetch('/verify-data/{{ form_id }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ primary: pVal, secondary: sVal })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.found) {
+                    fillFormAndHideFilled(data.data);
+                    isMultipleMatches = false;
+                }
+            });
+        }
+
+        function fillFormAndHideFilled(dataDict) {
+            const normData = {};
+            if (dataDict && typeof dataDict === 'object') {
+                Object.keys(dataDict).forEach(k => {
+                    normData[k.trim().toLowerCase()] = dataDict[k];
+                });
+            }
+
+            let hasNewFields = false;
+
+            fieldsList.forEach((field, index) => {
+                const inputEl = document.getElementById(`input_${index}`);
+                const groupEl = document.getElementById(`group_${index}`);
+                const normField = field.trim().toLowerCase();
+
+                const val = normData[normField];
+
+                // Index 0 (Unique Identifier) stays visible
+                if (index === 0) {
+                    if (groupEl) groupEl.style.display = 'block';
+                    return;
+                }
+
+                // If existing field has filled data in DB -> HIDE IT COMPLETELY!
+                if (val !== undefined && val !== null && val.toString().trim() !== "") {
+                    if (inputEl) inputEl.value = val;
+                    if (groupEl) groupEl.style.display = 'none';
+                } else {
+                    // SHOW ONLY NEW UNFILLED FIELDS WITH GREEN BADGE
+                    if (groupEl) groupEl.style.display = 'block';
+                    const labelEl = document.getElementById(`label_${index}`);
+                    if (labelEl && !labelEl.innerHTML.includes('NEW FIELD')) {
+                        labelEl.innerHTML = `<span class="new-field-badge">🟢 NEW FIELD TO FILL</span><br>${field}`;
+                    }
+                    hasNewFields = true;
+                }
+            });
+
+            if (statusMsg) {
+                statusMsg.style.color = "#16a34a";
+                if (hasNewFields) {
+                    statusMsg.innerText = "✓ Data Fetched! Old details hidden, fill new field(s) below:";
+                } else {
+                    statusMsg.innerText = "✓ All details verified! Old fields hidden.";
+                }
+            }
+        }
+
+        if (firstInput) {
+            firstInput.addEventListener('blur', function() {
+                checkPrimary(this.value.trim());
+            });
+        }
+
+        if (secondInput) {
+            secondInput.addEventListener('blur', checkSecondary);
+            secondInput.addEventListener('keyup', checkSecondary);
+        }
+
         allInputs.forEach((input, index) => {
             input.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
 
-                    // If primary field, trigger auto-fill fetch
-                    if (this.classList.contains('id-field-input')) {
-                        fetchAndFill(this.value.trim());
+                    if (index === 0) {
+                        checkPrimary(this.value.trim());
+                    } else if (index === 1 && isMultipleMatches) {
+                        checkSecondary();
                     }
 
-                    // Move to the next input box, or submit if at the last box
                     if (index < allInputs.length - 1) {
                         allInputs[index + 1].focus();
                     } else {
@@ -117,12 +185,6 @@
                 }
             });
         });
-
-        if (idInput) {
-            idInput.addEventListener('blur', function() {
-                fetchAndFill(this.value.trim());
-            });
-        }
     </script>
 </body>
 </html>
