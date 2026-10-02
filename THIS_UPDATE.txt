@@ -1,0 +1,15 @@
+QuickForm UI update — 29 September 2026
+
+Replace ONLY these two files in your Test_ChatGPT folder:
+  templates/admin.html
+  templates/student.html
+
+Keep your working app.py and templates/login.html unchanged.
+Restart python app.py, then hard-refresh browser with Ctrl+Shift+R.
+
+Dashboard: removed redundant Dashboard back link on dashboard.
+Builder: description optional, one initial field, short unique-field hint, Enter adds a field, Share form label.
+Share: users wording, Copy and native Share buttons, WhatsApp kept.
+Public form: removed instructional and routine lookup messages, Submit form button, separate success screen.
+
+NOTE: This update does NOT change existing edit behavior or backend data schema. For existing forms with two identifier fields, both are still required by the current backend. A new form can start with one field.

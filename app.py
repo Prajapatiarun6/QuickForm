@@ -4,6 +4,7 @@ import json
 import os
 import re
 import secrets
+import hashlib
 from functools import wraps
 
 from flask import (
@@ -19,12 +20,38 @@ import pandas as pd
 
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+
+def stable_session_secret():
+    configured = os.environ.get("SECRET_KEY", "").strip()
+    if configured:
+        return configured
+    # Keep sessions stable across Vercel/serverless restarts. Firebase's
+    # private key is already a server-side secret and is available from the
+    # same deployment configuration used to initialize Admin SDK.
+    try:
+        raw = os.environ.get("FIREBASE_CONFIG_JSON", "").strip()
+        if raw:
+            cfg = json.loads(raw)
+            material = str(cfg.get("private_key", "")) + str(cfg.get("client_email", ""))
+            if material.strip():
+                return hashlib.sha256(material.encode("utf-8")).hexdigest()
+        if os.path.exists("firebase_key.json"):
+            with open("firebase_key.json", "r", encoding="utf-8") as fh:
+                cfg = json.load(fh)
+            material = str(cfg.get("private_key", "")) + str(cfg.get("client_email", ""))
+            if material.strip():
+                return hashlib.sha256(material.encode("utf-8")).hexdigest()
+    except Exception:
+        pass
+    return secrets.token_hex(32)
+
+app.secret_key = stable_session_secret()
 
 # Safe defaults for browser sessions.
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=bool(os.environ.get("VERCEL")),
     MAX_CONTENT_LENGTH=2 * 1024 * 1024,
 )
 
