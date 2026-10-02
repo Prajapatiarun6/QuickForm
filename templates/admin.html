@@ -1,328 +1,170 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>QuickForm Admin</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background: #f8fafc; color: #0f172a; padding: 12px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 480px; }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .header h2 { font-size: 1.4rem; font-weight: 800; color: #1e3a8a; }
-        .settings-btn { font-size: 1.3rem; text-decoration: none; padding: 6px; border-radius: 50%; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; }
-
-        .card { background: white; padding: 18px; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 14px; }
-        
-        input[type="text"], input[type="password"] { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 15px; margin-bottom: 12px; outline: none; }
-        input:focus { border-color: #2563eb; }
-
-        .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; font-size: 15px; }
-        .btn-primary { background: #1e3a8a; color: white; }
-        .btn-create { background: #16a34a; color: white; margin-bottom: 14px; font-size: 15px; }
-        .btn-wa { background: #25D366; color: white; margin-bottom: 10px; }
-
-        .form-item { background: #ffffff; border: 1.5px solid #cbd5e1; padding: 14px; border-radius: 12px; margin-bottom: 12px; position: relative; }
-        .form-top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-        .form-title { font-size: 1.2rem; font-weight: 800; color: #0f172a; word-break: break-word; }
-        
-        .badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase; margin-left: 6px; }
-        .badge-active { background: #dcfce7; color: #15803d; }
-        .badge-closed { background: #fee2e2; color: #b91c1c; }
-
-        .form-link-box { display: flex; align-items: center; justify-content: space-between; background: #f1f5f9; padding: 8px 10px; border-radius: 6px; margin: 8px 0; border: 1px solid #e2e8f0; }
-        .form-url { color: #2563eb; font-weight: 600; text-decoration: none; font-size: 12px; word-break: break-all; }
-        .btn-copy { background: #1e3a8a; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; margin-left: 6px; flex-shrink: 0; }
-
-        .sub-count { font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 10px; }
-
-        .controls-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
-        .btn-edit-out { background: #eab308; color: #0f172a; padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 700; text-decoration: none; display: inline-block; }
-
-        .dots-container { position: relative; }
-        .btn-dots { background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 18px; font-weight: bold; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; color: #334155; }
-        .dots-menu { display: none; position: absolute; right: 0; bottom: 40px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); width: 170px; z-index: 100; overflow: hidden; }
-        .dots-menu.show { display: block; }
-        .dots-menu a, .dots-menu button { display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #334155; background: none; border: none; text-decoration: none; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
-        .dots-menu a:hover, .dots-menu button:hover { background: #f8fafc; }
-        .dots-menu .btn-del-menu { color: #dc2626; }
-
-        .table-responsive { width: 100%; overflow-x: auto; margin-top: 12px; border-radius: 8px; border: 1px solid #cbd5e1; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; background: white; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
-        th { background: #1e3a8a; color: white; font-weight: 700; }
-
-        .field-row { display: flex; gap: 6px; margin-bottom: 6px; }
-        .error-msg { color: #dc2626; font-size: 13px; margin-bottom: 10px; font-weight: 600; }
-        .nav-link { color: #1e3a8a; text-decoration: none; font-weight: 700; font-size: 14px; }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>QuickForm</title><link rel="icon" type="image/svg+xml" href="/static/quickform-logo.svg">
+<style>
+:root{--bg:#f5f7fb;--card:rgba(255,255,255,.82);--ink:#101828;--muted:#667085;--line:#e5e7eb;--blue:#2563eb;--blue2:#1d4ed8;--green:#16a34a;--red:#dc2626;--shadow:0 18px 50px rgba(15,23,42,.08);--r:24px;--surface:#fff;--surface2:#f8fafc}html.dark{--bg:#0b1220;--card:rgba(17,24,39,.82);--ink:#f3f4f6;--muted:#aab3c2;--line:#263244;--surface:#111827;--surface2:#0f172a;--shadow:0 18px 50px rgba(0,0,0,.3)}html.dark body{background:radial-gradient(circle at 20% 0,#172554 0,transparent 32%),radial-gradient(circle at 100% 20%,#1e1b4b 0,transparent 28%),var(--bg)}html.dark .icon-btn,html.dark .dots,html.dark .google-btn,html.dark .menu,html.dark .share-panel,html.dark .table-wrap,html.dark .input,html.dark .field-input,html.dark .link-box{background:var(--surface);color:var(--ink);border-color:var(--line)}html.dark .form-card{background:rgba(17,24,39,.72);border-color:var(--line)}html.dark .btn-soft{background:#172554;color:#bfdbfe}html.dark .btn-danger{background:#3f1720;color:#fecdd3}html.dark .notice{background:#172554;color:#bfdbfe}html.dark th{background:#020617}html.dark .share-sheet{background:rgba(2,6,23,.6)}html.dark .share-option{background:var(--surface2);color:var(--ink);border-color:var(--line)}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:radial-gradient(circle at 20% 0,#dbeafe 0,transparent 32%),radial-gradient(circle at 100% 20%,#e0e7ff 0,transparent 28%),var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;min-height:100vh;padding:20px 14px 42px}.page{width:min(920px,100%);margin:auto}.glass{background:var(--card);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.75);box-shadow:var(--shadow);border-radius:var(--r)}.topbar{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 18px}.brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:20px;letter-spacing:-.4px}.brand-mark{width:38px;height:38px;border-radius:13px;display:grid;place-items:center}.brand-mark img{width:38px;height:38px;display:block;border-radius:13px;filter:drop-shadow(0 8px 16px rgba(37,99,235,.18))}.icon-btn{width:42px;height:42px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.78);display:grid;place-items:center;color:#344054;cursor:pointer;text-decoration:none}.icon-btn svg{width:20px;height:20px;display:block}.card{padding:22px;margin-bottom:16px}.hero{padding:28px}.eyebrow{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:#667085}.title{font-size:28px;line-height:1.12;letter-spacing:-.8px;margin:7px 0 8px}.sub{color:var(--muted);font-size:14px;line-height:1.55}.grid{display:grid;gap:14px}.form-card{padding:18px;border:1px solid rgba(148,163,184,.25);border-radius:20px;background:rgba(255,255,255,.76)}.form-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.form-name{font-size:18px;font-weight:800;letter-spacing:-.25px}.badge{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800}.active{background:#dcfce7;color:#15803d}.closed{background:#fee2e2;color:#b91c1c}.link-box{display:flex;align-items:center;gap:7px;margin:15px 0 11px;padding:7px 8px 7px 12px;border:1px solid var(--line);background:#f8fafc;border-radius:15px}.link-box a{min-width:0;flex:1;color:#175cd3;text-decoration:none;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.icon-action{width:38px;height:38px;flex:0 0 38px;border:0;border-radius:12px;display:grid;place-items:center;cursor:pointer;background:white;border:1px solid var(--line);color:#344054}.icon-action svg{width:17px}.icon-action.whatsapp{color:#15803d}.icon-action.primary{background:#111827;color:#fff;border-color:#111827}.share-actions{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;flex-wrap:nowrap}.share-actions .btn{min-width:0;flex:1;max-width:190px;flex-direction:row;white-space:nowrap}.share-actions .btn svg{flex:0 0 17px}.field-hint{font-size:13px;color:var(--muted);margin:-1px 0 9px}.remove{width:42px;flex:0 0 42px;border:1px solid var(--line);background:transparent;color:#667085;border-radius:13px;cursor:pointer;display:grid;place-items:center}.remove:hover{background:#f8fafc;color:#344054}.remove svg{width:17px}.theme-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-top:1px solid var(--line);margin-top:4px}.switch{position:relative;width:48px;height:28px}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;inset:0;background:#d0d5dd;border-radius:999px;cursor:pointer;transition:.2s}.slider:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.18);transition:.2s}.switch input:checked+.slider{background:#2563eb}.switch input:checked+.slider:before{transform:translateX(20px)}.meta{color:var(--muted);font-size:13px;font-weight:700}.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:13px}.btn{min-height:44px;border:0;border-radius:14px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:800;text-decoration:none;cursor:pointer;font-size:14px}.btn svg{width:17px}.btn-primary{background:linear-gradient(135deg,var(--blue),var(--blue2));color:white;box-shadow:0 9px 22px rgba(37,99,235,.22)}.btn-soft{background:#eef4ff;color:#1d4ed8}.btn-danger{background:#fff1f2;color:#be123c}.btn-full{width:100%}.btn-green{background:linear-gradient(135deg,#16a34a,#15803d);color:white}.input,.field-input{width:100%;height:48px;border:1px solid #d0d5dd;background:rgba(255,255,255,.9);border-radius:14px;padding:0 14px;outline:0;font-size:15px;color:var(--ink);transition:.18s}.input:focus,.field-input:focus{border-color:#84adff;box-shadow:0 0 0 4px rgba(37,99,235,.1)}label{display:block;font-size:13px;font-weight:800;color:#475467;margin:0 0 7px}.field{margin-bottom:15px}.error-msg{padding:11px 13px;border-radius:13px;background:#fff1f2;color:#be123c;font-size:13px;font-weight:700;margin-bottom:14px}.notice{padding:12px 14px;border-radius:14px;background:#eff6ff;color:#1d4ed8;font-size:13px;line-height:1.45}.menu-wrap{position:relative}.dots{width:42px;height:42px;border:1px solid var(--line);border-radius:13px;background:#fff;display:grid;place-items:center;cursor:pointer}.dots svg{width:18px}.menu{display:none;position:absolute;right:0;top:48px;z-index:20;width:190px;padding:6px;border:1px solid var(--line);border-radius:16px;background:white;box-shadow:0 18px 45px rgba(15,23,42,.15)}.menu.show{display:block}.menu a,.menu button{width:100%;border:0;background:none;padding:11px 12px;border-radius:10px;text-align:left;text-decoration:none;color:#344054;font-size:14px;font-weight:700;cursor:pointer}.menu a:hover,.menu button:hover{background:#f8fafc}.menu .danger{color:#dc2626}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:16px;background:white}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:12px;border:1px solid #dfe4ea;text-align:left;white-space:nowrap}th{background:#111827;color:white;font-weight:800;position:sticky;top:0}.excel-view .excel-col{border:1px solid #374151;text-align:center}.excel-view .excel-field{border:1px solid #cbd5e1;background:#f8fafc;color:#111827}.excel-view .excel-row-number{border:1px solid #cbd5e1;background:#f1f5f9;color:#475467;text-align:center}.excel-view td{border:1px solid #dfe4ea}.field-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;margin-bottom:9px;align-items:center}.field-controls.is-hidden .unique-option,.field-controls.is-hidden .remove{display:none}.unique-select{height:48px;padding:0 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);color:var(--ink);font-size:12px;font-weight:800;cursor:pointer}.unique-option{display:flex;align-items:center;justify-content:center;gap:7px;min-width:132px;height:48px;padding:0 10px;border:1px solid var(--line);border-radius:14px;color:var(--muted);font-size:12px;font-weight:800;white-space:nowrap;background:var(--surface2)}.unique-option input{accent-color:#2563eb;width:16px;height:16px;margin:0}.unique-option span{line-height:1}.remove{width:48px;flex:0 0 48px;border:1px solid #fecaca;background:#fff1f2;color:#dc2626;border-radius:14px;cursor:pointer;display:grid;place-items:center}.remove svg{width:18px}.form-actions{display:flex;gap:10px;margin-top:14px}.form-actions .btn{flex:1}.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#111827;color:#fff;padding:11px 15px;border-radius:999px;font-size:13px;font-weight:800;transition:.22s;z-index:99}.toast.show{opacity:1;transform:translate(-50%,0)}.login-shell{max-width:440px;margin:8vh auto 0}.login-card{padding:30px}.password-toggle{position:absolute;right:7px;top:6px;width:36px;height:36px;border:0;background:transparent;color:#667085;display:grid;place-items:center;cursor:pointer}.password-toggle svg{width:19px}.google-btn{width:100%;height:48px;border:1px solid #d0d5dd;background:white;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:800;cursor:pointer}.google-g{font-size:18px;font-weight:900}.divider{display:flex;align-items:center;gap:12px;color:#98a2b3;font-size:12px;margin:18px 0}.divider:before,.divider:after{content:"";height:1px;background:#eaecf0;flex:1}.center{text-align:center}.muted-link{color:#175cd3;text-decoration:none;font-size:13px;font-weight:700}.success-icon{width:58px;height:58px;border-radius:20px;background:#dcfce7;color:#15803d;display:grid;place-items:center;margin:0 auto 14px}.success-icon svg{width:28px}.empty{text-align:center;padding:30px 12px;color:var(--muted)}.share-sheet{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;padding:14px;background:rgba(15,23,42,.28);backdrop-filter:blur(6px);z-index:90}.share-sheet.show{display:flex}.share-panel{width:min(520px,100%);padding:18px;border:1px solid rgba(255,255,255,.8);border-radius:24px;background:rgba(255,255,255,.96);box-shadow:0 24px 70px rgba(15,23,42,.2)}.share-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.share-panel-title{font-size:15px;font-weight:900}.share-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}.share-option{min-height:50px;border:1px solid var(--line);border-radius:15px;background:#f8fafc;font-weight:850;color:#344054;cursor:pointer}.share-option.whatsapp{color:#15803d}.share-close{border:0;background:none;color:#667085;font-weight:800;cursor:pointer}@media(max-width:700px){.page{width:100%}.field-row{grid-template-columns:minmax(0,1fr) auto}.unique-option{min-width:132px}.remove{grid-column:2;grid-row:1}.share-actions{width:100%}.share-actions .btn{max-width:none}.form-actions{flex-direction:column}body{padding:12px 10px 32px}.hero,.card,.login-card{padding:20px}.title{font-size:25px}.form-actions{flex-direction:column}.row .btn{min-height:42px}.share-actions{gap:8px}.share-actions .btn{flex:1}.success-link-box{margin-bottom:0}}
+.qr-card{margin-top:16px;padding:18px;border:1px solid rgba(148,163,184,.24);border-radius:20px;background:rgba(248,250,252,.72);text-align:center}.qr-title{font-size:13px;font-weight:850;margin-bottom:12px}.qr-box{width:220px;height:220px;margin:0 auto 12px;display:grid;place-items:center;background:#fff;border-radius:18px;padding:12px;border:1px solid var(--line);box-shadow:0 12px 30px rgba(15,23,42,.07)}.qr-box canvas,.qr-box img{max-width:100%;max-height:100%;display:block}.qr-caption{font-size:11px;color:var(--muted);line-height:1.45}.success-link-box{margin-top:16px}
+/* Targeted final corrections; existing QuickForm structure remains unchanged. */
+.top-actions{display:flex;align-items:center;gap:8px}
+.field-row{display:grid;grid-template-columns:minmax(0,1fr) 42px;grid-template-areas:"input remove" "unique unique";gap:8px;margin-bottom:12px;align-items:center}
+.field-row .field-input{grid-area:input}
+.field-row .unique-option{grid-area:unique;justify-self:start;min-width:0;width:auto;height:auto;padding:2px 0;border:0;background:transparent;border-radius:0;justify-content:flex-start}
+.field-row .unique-option span{display:none}
+.field-row .unique-option input{width:18px;height:18px;margin:0;accent-color:#2563eb}
+.field-row .remove{grid-area:remove;width:42px;height:42px;flex:0 0 42px;border:0;background:transparent;color:#98a2b3;border-radius:10px;padding:0}
+.field-row .remove:hover{background:transparent;color:#dc2626}
+.field-row .remove svg{width:21px;height:21px}
+.excel-view table{min-width:680px}
+.excel-view .excel-corner,.excel-view .excel-col,.excel-view .excel-row-number{background:#111827;color:#fff;text-align:center;font-weight:800}
+.excel-view .excel-field{background:#f3f4f6;color:#111827;font-weight:850}
+.excel-view td{background:var(--surface);color:var(--ink)}
+.qr-caption{font-size:13px}
+.success-link-box a{font-size:14px}
+.share-actions .btn{min-height:46px}
+@media(max-width:700px){
+  .top-actions .icon-btn{width:40px;height:40px}
+  .field-row{grid-template-columns:minmax(0,1fr) 42px}
+  .excel-view table{min-width:620px}
+}
+<style>
+/* Targeted share controls/mobile readability fixes only. */
+.share-actions .btn{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;gap:8px!important;text-align:center;white-space:nowrap}
+.share-actions .btn svg{width:18px!important;height:18px!important;display:block;flex:0 0 18px}
+@media(max-width:700px){.share-actions .btn{min-height:48px;font-size:15px;padding:0 12px}.share-actions .btn svg{width:18px!important;height:18px!important}}
+</style>
+</style>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
-    <div class="container">
+<div class="page">
+{% if view == 'login' %}
+<div class="login-shell">
+  <div class="glass login-card">
+    <div class="brand" style="justify-content:center;margin-bottom:26px"><div class="brand-mark"><img src="/static/quickform-logo.svg" alt="QuickForm"></div>QuickForm</div>
+    <div class="center"><div class="eyebrow">Admin workspace</div><h1 class="title">Admin Login</h1><p class="sub">Create and manage your forms from one place.</p></div>
+    {% if error %}<div class="error-msg" style="margin-top:18px">{{ error }}</div>{% endif %}
+    <div style="margin-top:20px"><button class="google-btn" type="button" onclick="googleLogin()"><span class="google-g">G</span> Continue with Google</button></div>
+    <div class="divider">or</div>
+    <form action="/login" method="POST">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label>Email</label><input class="input" type="email" name="email" placeholder="name@example.com" required autocomplete="email"></div>
+      <div class="field"><label>Password</label><div style="position:relative"><input class="input" id="login-password" style="padding-right:72px" type="password" name="password" placeholder="Enter password" required autocomplete="current-password"><button class="password-toggle" type="button" onclick="togglePassword('login-password',this)" aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div></div>
+      <button class="btn btn-primary btn-full" type="submit">Sign In</button>
+    </form>
+    <div class="center" style="margin-top:15px"><a class="muted-link" href="#" onclick="forgotPassword();return false">Forgot password?</a></div>
 
-        <!-- LOGIN -->
-        {% if view == 'login' %}
-        <div class="card" style="margin-top: 40px;">
-            <h2 style="text-align: center; margin-bottom: 15px; color: #1e3a8a;">🔒 QuickForm Login</h2>
-            {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
-            <form action="/login" method="POST">
-                <label style="font-size: 12px; color: #64748b; font-weight: 600;">User ID (No spaces)</label>
-                <input type="text" name="user_id" placeholder="Enter User ID" oninput="this.value=this.value.replace(/\s+/g,'')" required>
-                
-                <label style="font-size: 12px; color: #64748b; font-weight: 600;">Password</label>
-                <input type="password" name="password" placeholder="Enter Password" required>
-                
-                <button type="submit" class="btn btn-primary">Login / Register</button>
-            </form>
-        </div>
+  </div>
+</div>
 
-        <!-- SAVE & SHARE SUCCESS -->
-        {% elif view == 'success' %}
-        <div class="card" style="text-align: center;">
-            <h2 style="color: #16a34a; margin-bottom: 10px;">✅ Form Saved Successfully!</h2>
-            <p style="font-size: 15px; margin-bottom: 15px;">Title: <b>{{ clean_title }}</b></p>
-            
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 5px;">Shareable Link:</p>
-            <div class="form-link-box" style="justify-content: center; margin-bottom: 20px;">
-                <a href="{{ form_url }}" target="_blank" class="form-url" style="font-size: 14px;">{{ form_url }}</a>
-            </div>
+{% elif view == 'success' %}
+<div class="topbar"><a class="icon-btn" href="/" title="Dashboard" aria-label="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/></svg></a><div class="brand"><div class="brand-mark"><img src="/static/quickform-logo.svg" alt="QuickForm"></div>QuickForm</div><div style="width:42px"></div></div>
+<div class="glass hero center"><h1 class="title" style="font-size:32px;margin-top:0">{{ clean_title }}</h1>
+<div class="qr-card"><div id="form-qr" class="qr-box" data-url="{{ form_url }}"><span class="meta">Generating QR…</span></div><div class="qr-caption">Scan this QR to fill form</div></div>
+<div class="link-box success-link-box"><a id="success-link" href="{{ form_url }}" target="_blank" rel="noopener">{{ form_url }}</a></div><div class="share-actions"><button class="btn btn-primary" type="button" onclick="shareLink('{{ form_url }}')" aria-label="Share form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></svg>Share</button><button class="btn btn-soft" type="button" onclick="copyLink('{{ form_url }}')" aria-label="Copy form link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>Copy link</button><button class="btn btn-soft" type="button" onclick="openWhatsApp('{{ form_url }}')" aria-label="Share on WhatsApp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11.5a8 8 0 0 1-11.7 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"/><path d="M8.8 8.2c.2-.5.4-.6.8-.6h.5c.2 0 .4.1.5.4l.7 1.6c.1.3.1.5-.1.7l-.5.6c.8 1.4 1.6 2.1 3 2.8l.6-.5c.2-.2.4-.2.7-.1l1.5.7c.3.1.4.3.3.6-.2.6-.6 1.1-1.2 1.3-1.1.3-2.9-.5-4.3-1.6-1.5-1.2-2.5-2.7-2.9-3.8-.2-.6-.1-1.5.4-2.1Z"/></svg>WhatsApp</button></div></div>
 
-            <a href="{{ wa_share_url }}" target="_blank" class="btn btn-wa">📲 Share on WhatsApp</a>
-            <a href="/" class="btn btn-primary">🏠 Back to Dashboard</a>
-        </div>
+{% elif view == 'home' %}
+<div class="topbar"><div class="brand"><div class="brand-mark"><img src="/static/quickform-logo.svg" alt="QuickForm"></div>QuickForm</div><div class="top-actions"><a class="icon-btn" href="/settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2"/><path d="M12 19v2"/><path d="m4.93 4.93 1.42 1.42"/><path d="m17.65 17.65 1.42 1.42"/><path d="M3 12h2"/><path d="M19 12h2"/><path d="m4.93 19.07 1.42-1.42"/><path d="m17.65 6.35 1.42-1.42"/><circle cx="12" cy="12" r="4"/></svg></a></div></div>
+<div class="glass hero"><h1 class="title" style="margin-top:0">Your forms</h1><p class="sub">Create a form, share its link, collect responses and export them whenever you need.</p><a href="/create-page" class="btn btn-primary" style="margin-top:20px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Create Form</a></div>
+<div class="glass card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px"><div><div class="eyebrow">Workspace</div><h2 style="margin-top:4px;font-size:19px">Your Forms</h2></div><span class="meta">{{ existing_forms|length }} form{% if existing_forms|length != 1 %}s{% endif %}</span></div>
+{% if existing_forms %}<div class="grid">{% for fid,fdata in existing_forms.items() %}<div class="form-card"><div class="form-head"><div><div class="form-name">{{ fdata.get('title',fid) }}</div><span class="badge {{ 'active' if fdata.get('status','active')=='active' else 'closed' }}">{{ fdata.get('status','active') }}</span></div><div class="menu-wrap"><button class="dots" type="button" onclick="toggleMenu('menu-{{ fid }}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button><div class="menu" id="menu-{{ fid }}"><form action="/toggle-status/{{ fid }}" method="POST"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ 'Close Form' if fdata.get('status','active')=='active' else 'Re-open Form' }}</button></form><a href="/view-data/{{ fid }}">View Responses</a><form action="/delete-form/{{ fid }}" method="POST" onsubmit="return confirm('Delete this form and its saved responses?')"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="danger" type="submit">Delete Form</button></form></div></div></div><div class="link-box"><a href="/form/{{ fid }}" target="_blank" rel="noopener">{{ request.host_url }}form/{{ fid }}</a><button class="icon-action" type="button" onclick="shareLink('{{ request.host_url }}form/{{ fid }}')" title="Share" ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></svg></button><button class="icon-action primary" type="button" onclick="copyLink('{{ request.host_url }}form/{{ fid }}')" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg></button></div><div class="row"><span class="meta">{{ fdata.get('count',0) }} submission{% if fdata.get('count',0)!=1 %}s{% endif %}</span><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><a href="/edit/{{ fid }}" class="btn btn-soft">Edit</a></div></div></div>{% endfor %}</div>{% else %}<div class="empty">No forms yet. Create your first QuickForm above.</div>{% endif %}</div>
 
-        <!-- DASHBOARD -->
-        {% elif view == 'home' %}
-        <div class="header">
-            <h2>⚡ QuickForm</h2>
-            <a href="/settings" class="settings-btn" title="Settings">⚙️</a>
-        </div>
+{% elif view == 'view_data' %}
+<div class="topbar"><a class="icon-btn" href="/" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></a><div class="brand"><div class="brand-mark"><img src="/static/quickform-logo.svg" alt="QuickForm"></div>QuickForm</div><div style="width:42px"></div></div>
+<div class="glass card"><div class="eyebrow">Excel View</div><div class="row" style="margin-top:4px;margin-bottom:15px"><div><h1 class="title" style="font-size:28px;margin:0">{{ form_title }}</h1><span class="meta">{{ responses|length }} submission{% if responses|length != 1 %}s{% endif %}</span></div><a class="btn btn-green" href="/download-excel/{{ form_id }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download Excel</a></div>{% if responses %}<div class="table-wrap excel-view"><table><thead><tr><th class="excel-corner"></th>{% for field in fields %}<th class="excel-col">{{ excel_letters[loop.index0] if loop.index0 < excel_letters|length else 'A' }}</th>{% endfor %}</tr><tr><th class="excel-row-number">1</th>{% for field in fields %}<th class="excel-field">{{ field }}</th>{% endfor %}</tr></thead><tbody>{% for resp in responses %}<tr><th class="excel-row-number">{{ loop.index + 1 }}</th>{% for field in fields %}<td>{{ display_response_value(field, resp.get(field,'')) }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty">No responses submitted yet.</div>{% endif %}</div>
 
-        <a href="/create-page" class="btn btn-create">➕ Create Form</a>
+{% elif view == 'settings' %}
+<div class="topbar"><a class="icon-btn" href="/" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></a><div class="brand"><div class="brand-mark"><img src="/static/quickform-logo.svg" alt="QuickForm"></div>QuickForm</div><div style="width:42px"></div></div>
+<div class="glass hero"><div class="eyebrow">Settings</div><h1 class="title">Workspace settings</h1><p class="sub">Choose the file name prefix used for exported Excel files.</p></div><div class="glass card"><form action="/settings" method="POST"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><div class="field"><label>Account</label><div class="notice">{{ user_id }}</div></div><div class="field"><label>Excel file prefix</label><input class="input" type="text" name="file_prefix" value="{{ prefix }}" required></div><div class="theme-row"><div style="display:flex;align-items:center;gap:9px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.8 6.8 0 0 0 9.8 9.8Z"/></svg><div><strong style="font-size:14px">Dark mode</strong><div class="meta" style="margin-top:3px">Use a darker workspace appearance.</div></div></div><label class="switch"><input type="checkbox" id="dark-toggle" onchange="toggleDarkMode(this.checked)"><span class="slider"></span></label></div><button class="btn btn-primary btn-full" type="submit">Save Settings</button></form><form action="/logout" method="POST" style="margin-top:10px"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger btn-full" type="submit">Log Out</button></form></div>
 
-        <div class="card">
-            <h3 style="font-size: 1.05rem; color: #1e293b; margin-bottom: 12px;">📋 Your Forms</h3>
-            {% if existing_forms %}
-                {% for fid, fdata in existing_forms.items() %}
-                <div class="form-item">
-                    <div class="form-top-row">
-                        <div class="form-title">
-                            {{ fdata.title }}
-                            <span class="badge {{ 'badge-active' if fdata.get('status','active') == 'active' else 'badge-closed' }}">
-                                {{ fdata.get('status','active') }}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <div class="form-link-box">
-                        <a href="/form/{{ fid }}" target="_blank" class="form-url">{{ request.host_url }}form/{{ fid }}</a>
-                        <button class="btn-copy" onclick="copyLink('{{ request.host_url }}form/{{ fid }}')">📋 Copy</button>
-                    </div>
-
-                    <div class="sub-count">📊 Submissions: {{ fdata.count }}</div>
-                    
-                    <div class="controls-row">
-                        <a href="/edit/{{ fid }}" class="btn-edit-out">✏️ Edit</a>
-                        
-                        <div class="dots-container">
-                            <button class="btn-dots" onclick="toggleMenu('menu-{{ fid }}')">⋮</button>
-                            <div id="menu-{{ fid }}" class="dots-menu">
-                                <a href="/view-data/{{ fid }}">👁️ View Data</a>
-                                <a href="/download-excel/{{ fid }}">📥 Download Data</a>
-                                
-                                <form action="/toggle-status/{{ fid }}" method="POST">
-                                    {% if fdata.get('status','active') == 'active' %}
-                                    <button type="submit">🔒 Close Form</button>
-                                    {% else %}
-                                    <button type="submit">🔓 Re-open Form</button>
-                                    {% endif %}
-                                </form>
-
-                                <form action="/delete-form/{{ fid }}" method="POST" onsubmit="return confirm('Delete this form?');">
-                                    <button type="submit" class="btn-del-menu">🗑️ Delete Form</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <p style="font-size: 13px; color: #64748b; text-align: center;">No forms created yet.</p>
-            {% endif %}
-        </div>
-
-        <!-- VIEW DATA -->
-        {% elif view == 'view_data' %}
-        <a href="/" class="nav-link">← Back to Dashboard</a>
-        <br><br>
-        <div class="card">
-            <h2 style="font-size: 1.25rem;">📊 Data: {{ form_title }}</h2>
-            <p style="font-size: 12px; color: #64748b; margin-top: 4px; margin-bottom: 12px;">Total Submissions: {{ responses|length }}</p>
-            
-            <a href="/download-excel/{{ form_id }}" class="btn btn-create" style="background:#16a34a; font-size:13px; padding:10px;">📥 Download Data</a>
-
-            {% if responses %}
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            {% for field in fields %}
-                            <th>{{ field }}</th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for resp in responses %}
-                        <tr>
-                            {% for field in fields %}
-                            <td>{{ resp.get(field, '') }}</td>
-                            {% endfor %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <p style="font-size: 13px; color: #64748b; margin-top: 15px;">No responses submitted yet.</p>
-            {% endif %}
-        </div>
-
-        <!-- SETTINGS -->
-        {% elif view == 'settings' %}
-        <a href="/" class="nav-link">← Back to Dashboard</a>
-        <br><br>
-        
-        <div class="card" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; border: none;">
-            <h3 style="color: white; margin-bottom: 6px;">⚙️ QuickForm Settings</h3>
-            <p style="font-size: 12px; opacity: 0.9;">Manage account & download folder prefix</p>
-        </div>
-
-        <div class="card">
-            <h4 style="font-size: 14px; color: #1e3a8a; margin-bottom: 10px;">👤 Account Details</h4>
-            <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
-                <span style="font-size: 12px; color: #64748b;">User ID:</span>
-                <p style="font-weight: 700; color: #0f172a;">{{ user_id }}</p>
-            </div>
-            <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                <span style="font-size: 12px; color: #64748b;">Password:</span>
-                <p style="font-weight: 700; color: #0f172a;">{{ password }}</p>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
-
-            <h4 style="font-size: 14px; color: #16a34a; margin-bottom: 10px;">📁 Download Name Prefix</h4>
-            <form action="/settings" method="POST">
-                <label style="font-size: 12px; color: #64748b; font-weight: 600;">File Name Prefix</label>
-                <input type="text" name="file_prefix" value="{{ prefix }}" placeholder="QuickForm" required>
-                
-                <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 8px 10px; border-radius: 4px; margin-bottom: 12px; font-size: 11px; color: #0369a1;">
-                    💡 Saved files will be named <b><code>{{ prefix }}_Title.xlsx</code></b> in your Downloads folder!
-                </div>
-
-                <button type="submit" class="btn btn-primary" style="background: #16a34a;">💾 Save Setting</button>
-            </form>
-            
-            <br>
-            <a href="/logout" class="btn btn-primary" style="background: #dc2626;">Logout Account</a>
-        </div>
-
-        <!-- CREATE / EDIT -->
-        {% elif view == 'create' or view == 'edit' %}
-        <a href="/" class="nav-link">← Back to Dashboard</a>
-        <br><br>
-        <div class="card">
-            <h3>{{ 'Edit Form' if is_edit else 'Create Form' }}</h3>
-            <br>
-            <form action="/create-form" method="POST" id="main-form">
-                {% if is_edit %}<input type="hidden" name="existing_form_id" value="{{ form_id }}">{% endif %}
-
-                <label style="font-size: 12px; color: #64748b; font-weight: 600;">Form Title</label>
-                <input type="text" name="form_title" value="{{ edit_title if is_edit else '' }}" placeholder="Enter Form Title" required>
-
-                <label style="font-size: 12px; color: #64748b; font-weight: 600;">Form Fields</label>
-                <div id="fields-container">
-                    {% if is_edit and edit_fields %}
-                        {% for f in edit_fields %}
-                        <div class="field-row">
-                            <input type="text" name="custom_fields[]" value="{{ f }}" required>
-                            <button type="button" class="btn-dots" style="color:#dc2626; width:38px;" onclick="removeSlot(this)">X</button>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="field-row">
-                            <input type="text" name="custom_fields[]" placeholder="Field Name (e.g. City, State, Name)" required>
-                            <button type="button" class="btn-dots" style="color:#dc2626; width:38px;" onclick="removeSlot(this)">X</button>
-                        </div>
-                    {% endif %}
-                </div>
-
-                <button type="button" class="btn btn-create" style="margin-top: 5px; background:#0284c7;" onclick="addNewField()">+ Add Field</button>
-                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Save & Share Link</button>
-            </form>
-        </div>
-        {% endif %}
-
-    </div>
-
-    <script>
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.keyCode === 13) {
-                const target = e.target;
-                if (target && (target.name === 'custom_fields[]' || target.name === 'form_title')) {
-                    e.preventDefault();
-                    
-                    if (target.name === 'custom_fields[]' && target.value.trim() !== '') {
-                        addNewField();
-                    } else if (target.name === 'form_title') {
-                        const firstInput = document.querySelector('input[name="custom_fields[]"]');
-                        if (firstInput) firstInput.focus();
-                    }
-                    return false;
-                }
-            }
-        });
-
-        function addNewField() {
-            const container = document.getElementById('fields-container');
-            if (!container) return;
-            const div = document.createElement('div');
-            div.className = 'field-row';
-            div.innerHTML = `<input type="text" name="custom_fields[]" placeholder="Field Name" required><button type="button" class="btn-dots" style="color:#dc2626; width:38px;" onclick="removeSlot(this)">X</button>`;
-            container.appendChild(div);
-            const newInput = div.querySelector('input');
-            if (newInput) newInput.focus();
-        }
-
-        function removeSlot(btn) {
-            const container = document.getElementById('fields-container');
-            if (!container) return;
-            const rows = container.querySelectorAll('.field-row');
-            if (rows.length > 1) {
-                btn.parentElement.remove();
-            } else {
-                alert("Form must have at least one field!");
-            }
-        }
-
-        function toggleMenu(id) {
-            document.querySelectorAll('.dots-menu').forEach(m => {
-                if(m.id !== id) m.classList.remove('show');
-            });
-            const menu = document.getElementById(id);
-            if(menu) menu.classList.toggle('show');
-        }
-
-        document.addEventListener('click', function(e) {
-            if(!e.target.classList.contains('btn-dots')) {
-                document.querySelectorAll('.dots-menu').forEach(m => m.classList.remove('show'));
-            }
-        });
-
-        function copyLink(text) {
-            navigator.clipboard.writeText(text);
-            alert("Link copied to clipboard!");
-        }
-    </script>
-</body>
-</html>
+{% elif view == 'create' or view == 'edit' %}
+<div class="topbar"><a class="icon-btn" href="/" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></a><div class="brand"><div class="brand-mark"><img src="/static/quickform-logo.svg" alt="QuickForm"></div>QuickForm</div><div style="width:42px"></div></div>
+<div class="glass card"><h1 class="title" style="font-size:28px;margin-top:0">{{ 'Edit Form' if is_edit else 'Create Form' }}</h1>{% if error %}<div class="error-msg">{{ error }}</div>{% endif %}<form action="/create-form" method="POST" id="main-form"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">{% if is_edit %}<input type="hidden" name="existing_form_id" value="{{ form_id }}">{% endif %}<div class="field"><label>Form title</label><input class="input" type="text" name="form_title" value="{{ edit_title if is_edit else '' }}" placeholder="Enter Here" required></div><div class="field"><label>Fields</label><div class="field-hint">Select a unique field</div><div id="fields-container" data-controls-visible="false">{% if is_edit and edit_fields %}{% for f in edit_fields %}<div class="field-row"><input class="field-input" type="text" name="custom_fields[]" value="{{ f }}" placeholder="Enter Here"><div class="field-controls is-hidden"><div class="unique-option"><input type="radio" name="unique_identifier" value="{{ f }}" data-unique-radio aria-label="Select {{ f }} as unique field" {% if edit_unique_identifier and edit_unique_identifier|lower == f|lower %}checked{% elif not edit_unique_identifier and loop.first %}checked{% endif %}></div><button class="remove" type="button" onclick="removeSlot(this)" title="Remove field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button></div></div>{% endfor %}{% else %}<div class="field-row"><input class="field-input" type="text" name="custom_fields[]" placeholder="Enter Here"><div class="field-controls is-hidden"><div class="unique-option"><input type="radio" name="unique_identifier" value="" data-unique-radio aria-label="Select this field as unique field" checked></div><button class="remove" type="button" onclick="removeSlot(this)" title="Remove field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button></div></div>{% endif %}</div></div><div class="field"><label>Details <span style="font-weight:600;color:var(--muted)">(optional)</span></label><textarea class="input" name="description" rows="3" style="height:auto;min-height:84px;padding:12px 14px;resize:vertical" placeholder="Enter Here">{{ edit_description if is_edit else '' }}</textarea></div><div class="form-actions"><button class="btn btn-soft" type="button" onclick="addNewField()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add Field</button><button class="btn btn-primary" type="submit">Save & Share</button></div></form></div>
+{% endif %}
+</div><div class="toast" id="toast"></div>
+<div class="share-sheet" id="share-sheet" onclick="if(event.target===this)closeShareSheet()"><div class="share-panel"><div class="share-panel-head"><div class="share-panel-title">Share form link</div><button class="share-close" type="button" onclick="closeShareSheet()">Close</button></div><div class="share-options"><button class="share-option" id="sheet-copy" type="button">Copy link</button><button class="share-option whatsapp" id="sheet-whatsapp" type="button">WhatsApp</button></div></div></div>
+<script>
+function applyDarkMode(v){document.documentElement.classList.toggle('dark',v);localStorage.setItem('quickform-dark',v?'1':'0');const t=document.getElementById('dark-toggle');if(t)t.checked=v}function toggleDarkMode(v){applyDarkMode(v)}applyDarkMode(localStorage.getItem('quickform-dark')==='1');
+function toast(m){const t=document.getElementById('toast');if(!t)return;t.textContent=m;t.classList.add('show');clearTimeout(window.__tt);window.__tt=setTimeout(()=>t.classList.remove('show'),1800)}
+function togglePassword(id,btn){const i=document.getElementById(id);if(!i)return;i.type=i.type==='password'?'text':'password';btn.innerHTML=i.type==='password'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.7 10.7 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3.2 3.8M6.1 6.1C3.4 8.1 2 12 2 12s3.5 6 10 6c1.1 0 2.1-.2 3-.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'}
+function toggleMenu(id){document.querySelectorAll('.menu').forEach(m=>{if(m.id!==id)m.classList.remove('show')});const m=document.getElementById(id);if(m)m.classList.toggle('show')}
+document.addEventListener('click',e=>{if(!e.target.closest('.menu-wrap'))document.querySelectorAll('.menu').forEach(m=>m.classList.remove('show'))})
+function syncUniqueRadios(){
+  document.querySelectorAll('.field-row').forEach(row=>{
+    const input=row.querySelector('.field-input');
+    const radio=row.querySelector('input[data-unique-radio]');
+    if(input && radio && radio.checked){ radio.value=input.value.trim(); }
+  });
+}
+function addNewField(){
+  const c=document.getElementById('fields-container');
+  if(!c)return;
+  const d=document.createElement('div');
+  d.className='field-row';
+  d.innerHTML='<input class="field-input" type="text" name="custom_fields[]" placeholder="Enter Here"><div class="field-controls is-visible"><div class="unique-option"><input type="radio" name="unique_identifier" value="" data-unique-radio aria-label="Select this field as unique field"></div><button class="remove" type="button" onclick="removeSlot(this)" title="Remove field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button></div>';
+  c.appendChild(d);
+  c.dataset.controlsVisible='true';
+  c.querySelectorAll('.field-controls').forEach(el=>{el.classList.remove('is-hidden');el.classList.add('is-visible')});
+  d.querySelector('.field-input')?.focus();
+  syncUniqueRadios();
+}
+function removeSlot(btn){
+  const row=btn.closest('.field-row');
+  const wasUnique=row?.querySelector('input[data-unique-radio]')?.checked;
+  if(row)row.remove();
+  const rows=document.querySelectorAll('.field-row');
+  if(!rows.length){ addNewField(); return; }
+  if(wasUnique){
+    const first=rows[0].querySelector('input[data-unique-radio]');
+    if(first)first.checked=true;
+  }
+  syncUniqueRadios();
+}
+document.addEventListener('DOMContentLoaded',()=>{const c=document.getElementById('fields-container');if(c&&c.dataset.controlsVisible!=='true'){c.querySelectorAll('.field-controls').forEach(el=>{el.classList.add('is-hidden');el.classList.remove('is-visible')})}});
+document.addEventListener('input',e=>{if(e.target.matches('.field-input'))syncUniqueRadios()});
+document.addEventListener('change',e=>{if(e.target.matches('input[data-unique-radio]'))syncUniqueRadios()});
+function openWhatsApp(url){window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(url),'_blank','noopener')}
+document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const t=e.target;if(t.name==='form_title'){e.preventDefault();document.querySelector('input[name="custom_fields[]"]')?.focus()}else if(t.name==='custom_fields[]'){e.preventDefault();addNewField()}})
+const builder=document.getElementById('main-form');if(builder)builder.addEventListener('submit',()=>{syncUniqueRadios();document.querySelectorAll('input[name="custom_fields[]"]').forEach(i=>{if(!i.value.trim())i.closest('.field-row')?.remove()});syncUniqueRadios()})
+async function copyLink(text){try{await navigator.clipboard.writeText(text);toast('Link copied')}catch(e){toast('Copy failed')}}
+async function shareLink(url){try{if(navigator.share){await navigator.share({title:'QuickForm',url});return}}catch(e){if(e&&e.name==='AbortError')return}openShareSheet(url)}
+function openShareSheet(url){const sheet=document.getElementById('share-sheet');if(!sheet)return;sheet.dataset.url=url;document.getElementById('sheet-copy').onclick=async()=>{await copyLink(url);closeShareSheet()};document.getElementById('sheet-whatsapp').onclick=()=>{window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(url),'_blank','noopener');closeShareSheet()};sheet.classList.add('show')}
+function closeShareSheet(){document.getElementById('share-sheet')?.classList.remove('show')}
+function updateShareButtons(){document.querySelectorAll('[onclick^="shareLink"]').forEach(b=>b.style.display='flex')}updateShareButtons();
+function makeQr(){const el=document.getElementById('form-qr');if(!el||!window.QRCode)return;el.innerHTML='';new QRCode(el,{text:el.dataset.url,width:190,height:190,colorDark:'#111827',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',makeQr)}else{makeQr()}
+async function googleLogin(){
+  try{
+    if(!window.quickFormFirebaseReady){toast('Firebase is loading…');return}
+    const provider=new window.firebaseAuth.GoogleAuthProvider();
+    const result=await window.firebaseAuth.signInWithPopup(window.firebaseAuthClient,provider);
+    const idToken=await result.user.getIdToken();
+    const r=await fetch('/auth/firebase',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_token:idToken})});
+    const data=await r.json();
+    if(!r.ok||!data.ok) throw new Error(data.error||'Google sign-in failed');
+    location.href='/';
+  }catch(e){toast(e.message||'Google sign-in failed')}
+}
+async function forgotPassword(){
+  const email=prompt('Enter your QuickForm email');
+  if(!email)return;
+  try{
+    if(!window.quickFormFirebaseReady){toast('Firebase is loading…');return}
+    await window.firebaseAuth.sendPasswordResetEmail(window.firebaseAuthClient,email.trim().toLowerCase());
+    toast('Password reset email sent');
+  }catch(e){toast(e.code==='auth/user-not-found'?'Account not found':(e.message||'Could not send reset email'))}
+}
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+const firebaseConfig={apiKey:"AIzaSyA-jMgLA7pAcgcKZmDBWPxNHGCG58KeVR4",authDomain:"quickform-83349.firebaseapp.com",projectId:"quickform-83349",storageBucket:"quickform-83349.firebasestorage.app",messagingSenderId:"133846979008",appId:"1:133846979008:web:cfb61bf453f52b904fb825",measurementId:"G-05K27D478M6"};
+const app=initializeApp(firebaseConfig);
+const authClient=getAuth(app);
+window.firebaseAuthClient=authClient;
+window.firebaseAuth={GoogleAuthProvider,signInWithPopup,sendPasswordResetEmail};
+window.quickFormFirebaseReady=true;
+</script></body></html>

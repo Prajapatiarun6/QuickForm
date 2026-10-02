@@ -1,175 +1,504 @@
+
 import io
 import json
 import os
 import re
 import secrets
-from flask import Flask, render_template, request, redirect, jsonify, send_file, session
+from functools import wraps
+
+from flask import (
+    Flask, render_template, request, redirect, jsonify,
+    send_file, session, abort
+)
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, auth
 import pandas as pd
 
-app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)
 
-# Firebase Setup
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+
+# Safe defaults for browser sessions.
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    MAX_CONTENT_LENGTH=2 * 1024 * 1024,
+)
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
+
+# ---------------------------------------------------------------------------
+# Firebase
+# ---------------------------------------------------------------------------
+
 if not firebase_admin._apps:
     if os.path.exists("firebase_key.json"):
         cred = credentials.Certificate("firebase_key.json")
         firebase_admin.initialize_app(cred)
     else:
-        cred_json = json.loads(os.environ.get("FIREBASE_CONFIG_JSON", "{}"))
-        if cred_json:
-            cred = credentials.Certificate(cred_json)
-            firebase_admin.initialize_app(cred)
+        raw = os.environ.get("FIREBASE_CONFIG_JSON", "").strip()
+        if raw:
+            cred_json = json.loads(raw)
+            firebase_admin.initialize_app(credentials.Certificate(cred_json))
 
 db = firestore.client() if firebase_admin._apps else None
 
 
-def clean_username(val):
-    return re.sub(r"\s+", "", str(val or "").strip())
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def clean_email(value):
+    return str(value or "").strip().lower()
+
+
+def is_valid_email(email):
+    return bool(EMAIL_RE.fullmatch(email))
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if "user_email" not in session or db is None:
+            return redirect("/")
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def csrf_token():
+    token = session.get("_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_csrf_token"] = token
+    return token
+
+
+app.jinja_env.globals["csrf_token"] = csrf_token
+
+
+def display_response_value(field, value):
+    """Presentation-only formatting; Firestore values remain untouched."""
+    text = "" if value is None else str(value)
+    label = str(field or "").strip().casefold()
+    name_like = (
+        label == "name"
+        or "full name" in label
+        or "student name" in label
+        or label.endswith(" name")
+        or label.startswith("name ")
+    )
+    return text.title() if name_like and text else text
+
+
+app.jinja_env.globals["display_response_value"] = display_response_value
+
+
+def require_csrf():
+    supplied = request.form.get("_csrf_token", "")
+    expected = session.get("_csrf_token", "")
+    if not expected or not supplied or not secrets.compare_digest(supplied, expected):
+        abort(400, description="Invalid request token.")
+
+
+def get_owned_form(form_id):
+    if not db or "user_email" not in session:
+        return None
+
+    doc = db.collection("forms").document(form_id).get()
+    if not doc.exists:
+        return None
+
+    data = doc.to_dict()
+    if data.get("user_id") != session["user_email"]:
+        return None
+
+    return doc
 
 
 def get_existing_db_fields(form_id):
-    """Firestore से केवल वही फ़ील्ड्स ढूँढता है जो पुराने डेटाबेस में पहले से भरे जा चुके हैं"""
-    existing_keys = set()
+    keys = set()
     if db and form_id:
-        resps = db.collection("forms").document(form_id).collection("responses").limit(10).stream()
-        for r in resps:
-            existing_keys.update(r.to_dict().keys())
-    return existing_keys
+        responses = (
+            db.collection("forms")
+            .document(form_id)
+            .collection("responses")
+            .limit(10)
+            .stream()
+        )
+        for response in responses:
+            keys.update(response.to_dict().keys())
+    return keys
 
 
 def get_primary_identifier(fields, form_id=None):
+    """Return the administrator-selected unique identifier when available.
+
+    Older forms that do not have the new metadata keep the original
+    keyword-based fallback so existing forms continue to work.
+    """
+    if not fields:
+        return None
+
+    if form_id and db:
+        form_doc = db.collection("forms").document(form_id).get()
+        if form_doc.exists:
+            selected = str(form_doc.to_dict().get("unique_identifier", "")).strip()
+            if selected and selected in fields:
+                return selected
+
     existing_keys = get_existing_db_fields(form_id)
-    
-    # अगर पुराने डेटाबेस में रिकॉर्ड्स मौजूद हैं, तो यूनिक आईडी सिर्फ पुराने फ़ील्ड्स में से ही चुनी जाएगी!
-    candidate_fields = [f for f in fields if f in existing_keys] if existing_keys else fields
+    candidates = [f for f in fields if f in existing_keys] if existing_keys else list(fields)
 
-    for key in ["phone", "mobile", "email", "enroll", "roll", "id", "name"]:
-        for f in candidate_fields:
-            if key in f.lower():
-                return f
-    return candidate_fields[0] if candidate_fields else (fields[0] if fields else None)
+    preferred = ("phone", "mobile", "email", "enroll", "roll", "student id", "id", "name")
+    for keyword in preferred:
+        for field in candidates:
+            if keyword in field.lower():
+                return field
 
+    return candidates[0] if candidates else fields[0]
+
+
+def normalize_value(value):
+    return str(value or "").strip().casefold()
+
+
+def find_response_by_identifier(form_id, primary_field, primary_value, secondary_field=None, secondary_value=None):
+    """
+    Match by the actual identifier field instead of searching every value in
+    the record. This prevents unrelated records from being overwritten.
+    """
+    if not db or not primary_field or not primary_value:
+        return None
+
+    responses = (
+        db.collection("forms")
+        .document(form_id)
+        .collection("responses")
+        .stream()
+    )
+
+    primary_value = normalize_value(primary_value)
+    secondary_value = normalize_value(secondary_value)
+
+    primary_matches = []
+
+    for doc in responses:
+        data = doc.to_dict()
+        if normalize_value(data.get(primary_field)) == primary_value:
+            primary_matches.append(doc)
+
+    if secondary_value:
+        for doc in primary_matches:
+            data = doc.to_dict()
+            if secondary_field and normalize_value(data.get(secondary_field)) == secondary_value:
+                return doc
+
+            # Backward-compatible fallback: if the second field is not known,
+            # check the other stored values.
+            if not secondary_field:
+                other_values = [
+                    normalize_value(v)
+                    for k, v in data.items()
+                    if k != primary_field
+                ]
+                if secondary_value in other_values:
+                    return doc
+
+    return primary_matches[0] if len(primary_matches) == 1 else None
+
+
+def sync_firebase_password(email, password):
+    """Keep the existing QuickForm Firestore login while mirroring the
+    credentials into Firebase Auth so password-reset email can work."""
+    try:
+        user = auth.get_user_by_email(email)
+        auth.update_user(user.uid, password=password)
+    except auth.UserNotFoundError:
+        try:
+            auth.create_user(email=email, password=password, email_verified=False)
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
+@app.route("/auth/firebase", methods=["POST"])
+def firebase_session():
+    if not db:
+        return jsonify({"ok": False, "error": "Firebase database is not configured."}), 500
+
+    payload = request.get_json(silent=True) or {}
+    token = str(payload.get("id_token", "")).strip()
+    if not token:
+        return jsonify({"ok": False, "error": "Missing Firebase token."}), 400
+
+    try:
+        decoded = auth.verify_id_token(token)
+        email = clean_email(decoded.get("email"))
+        if not email or not is_valid_email(email):
+            return jsonify({"ok": False, "error": "Google account has no usable email."}), 400
+
+        user_ref = db.collection("users").document(email)
+        user_doc = user_ref.get()
+        if not user_doc.exists:
+            user_ref.set({
+                "file_prefix": "QuickForm",
+                "auth_provider": "google",
+                "created_at": firestore.SERVER_TIMESTAMP
+            })
+        else:
+            user_ref.set({"auth_provider": "google"}, merge=True)
+
+        session.clear()
+        session["user_email"] = email
+        session["_csrf_token"] = secrets.token_urlsafe(32)
+        return jsonify({"ok": True})
+    except Exception:
+        return jsonify({"ok": False, "error": "Google sign-in could not be verified."}), 401
+
+
+# ---------------------------------------------------------------------------
+# Admin
+# ---------------------------------------------------------------------------
 
 @app.route("/")
 def admin_panel():
-    if "user_id" not in session:
+    if "user_email" not in session:
         return render_template("admin.html", view="login")
 
-    user_id = session["user_id"]
+    if not db:
+        return render_template(
+            "admin.html",
+            view="login",
+            error="Firebase database is not configured."
+        )
+
+    user_email = session["user_email"]
     existing_forms = {}
 
-    if db:
-        docs = db.collection("forms").where("user_id", "==", user_id).stream()
-        for doc in docs:
-            fdata = doc.to_dict()
-            resps = db.collection("forms").document(doc.id).collection("responses").stream()
-            fdata["count"] = len(list(resps))
-            existing_forms[doc.id] = fdata
+    docs = db.collection("forms").where("user_id", "==", user_email).stream()
 
-    return render_template("admin.html", view="home", existing_forms=existing_forms, user_id=user_id)
+    for doc in docs:
+        data = doc.to_dict()
+        responses = (
+            db.collection("forms")
+            .document(doc.id)
+            .collection("responses")
+            .stream()
+        )
+        data["count"] = sum(1 for _ in responses)
+        existing_forms[doc.id] = data
+
+    return render_template(
+        "admin.html",
+        view="home",
+        existing_forms=existing_forms,
+        user_id=user_email
+    )
 
 
 @app.route("/login", methods=["POST"])
 def login():
-    user_id = clean_username(request.form.get("user_id"))
-    password = request.form.get("password", "").strip()
+    if not db:
+        return render_template(
+            "admin.html",
+            view="login",
+            error="Firebase database is not configured."
+        )
 
-    if not user_id or not password or not db:
-        return render_template("admin.html", view="login", error="User ID & Password Required!")
+    require_csrf()
 
-    user_ref = db.collection("users").document(user_id).get()
+    email = clean_email(request.form.get("email"))
+    password = request.form.get("password", "")
 
-    if user_ref.exists:
-        if user_ref.to_dict().get("password") == password:
-            session["user_id"] = user_id
-            return redirect("/")
-        else:
-            return render_template("admin.html", view="login", error="Wrong Password!")
+    if not email or not password:
+        return render_template(
+            "admin.html",
+            view="login",
+            error="Email and password are required."
+        )
+
+    if not is_valid_email(email):
+        return render_template(
+            "admin.html",
+            view="login",
+            error="Enter a valid email address."
+        )
+
+    user_ref = db.collection("users").document(email)
+    user_doc = user_ref.get()
+
+    if user_doc.exists:
+        data = user_doc.to_dict()
+        stored_hash = data.get("password_hash")
+        stored_plain = data.get("password")  # legacy compatibility only
+
+        valid = False
+        if stored_hash:
+            valid = check_password_hash(stored_hash, password)
+        elif stored_plain:
+            valid = secrets.compare_digest(str(stored_plain), password)
+
+        if not valid:
+            return render_template(
+                "admin.html",
+                view="login",
+                error="Incorrect password."
+            )
+
+        # Upgrade old plain-password accounts immediately.
+        if not stored_hash:
+            user_ref.set({
+                "password_hash": generate_password_hash(password),
+                "password": firestore.DELETE_FIELD
+            }, merge=True)
     else:
-        db.collection("users").document(user_id).set({"password": password, "file_prefix": "QuickForm"})
-        session["user_id"] = user_id
-        return redirect("/")
+        # Keep the original QuickForm behavior: first login/registers account.
+        user_ref.set({
+            "password_hash": generate_password_hash(password),
+            "file_prefix": "QuickForm",
+            "created_at": firestore.SERVER_TIMESTAMP
+        })
+
+    # Mirror the verified QuickForm password into Firebase Auth so the
+    # client-side password-reset flow can use Firebase's email delivery.
+    sync_firebase_password(email, password)
+
+    session.clear()
+    session["user_email"] = email
+    session["_csrf_token"] = secrets.token_urlsafe(32)
+    return redirect("/")
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
+    if request.method == "POST":
+        require_csrf()
     session.clear()
     return redirect("/")
 
 
 @app.route("/settings", methods=["GET", "POST"])
+@admin_required
 def settings_page():
-    if "user_id" not in session or not db:
-        return redirect("/")
-
-    user_id = session["user_id"]
-    user_ref = db.collection("users").document(user_id)
+    user_email = session["user_email"]
+    user_ref = db.collection("users").document(user_email)
 
     if request.method == "POST":
+        require_csrf()
+
         new_prefix = request.form.get("file_prefix", "QuickForm").strip()
-        user_ref.update({"file_prefix": new_prefix})
+        new_prefix = re.sub(r"[^A-Za-z0-9 _.-]", "", new_prefix)[:80] or "QuickForm"
+
+        user_ref.set({"file_prefix": new_prefix}, merge=True)
         return redirect("/settings")
 
     user_doc = user_ref.get()
-    pwd = user_doc.to_dict().get("password", "******") if user_doc.exists else "******"
-    prefix = user_doc.to_dict().get("file_prefix", "QuickForm") if user_doc.exists else "QuickForm"
+    data = user_doc.to_dict() if user_doc.exists else {}
 
-    return render_template("admin.html", view="settings", user_id=user_id, password=pwd, prefix=prefix)
+    return render_template(
+        "admin.html",
+        view="settings",
+        user_id=user_email,
+        prefix=data.get("file_prefix", "QuickForm")
+    )
 
 
 @app.route("/create-page")
+@admin_required
 def create_page():
-    if "user_id" not in session:
-        return redirect("/")
     return render_template("admin.html", view="create", is_edit=False)
 
 
 @app.route("/edit/<form_id>")
+@admin_required
 def edit_form(form_id):
-    if "user_id" not in session or not db:
+    doc = get_owned_form(form_id)
+    if not doc:
         return redirect("/")
 
-    doc = db.collection("forms").document(form_id).get()
-    if doc.exists and doc.to_dict().get("user_id") == session["user_id"]:
-        data = doc.to_dict()
-        return render_template(
-            "admin.html",
-            view="edit",
-            is_edit=True,
-            form_id=form_id,
-            edit_title=data.get("title", ""),
-            edit_fields=data.get("fields", [])
-        )
-    return redirect("/")
+    data = doc.to_dict()
+
+    return render_template(
+        "admin.html",
+        view="edit",
+        is_edit=True,
+        form_id=form_id,
+        edit_title=data.get("title", ""),
+        edit_fields=data.get("fields", []),
+        edit_description=data.get("description", ""),
+        edit_unique_identifier=data.get("unique_identifier", "")
+    )
 
 
 @app.route("/create-form", methods=["POST"])
+@admin_required
 def create_form():
-    if "user_id" not in session:
-        return redirect("/")
+    require_csrf()
 
     title = request.form.get("form_title", "QuickForm").strip()
-    clean_title = re.sub(r"\W+", "", title) or "QuickForm"
-    user_id = session["user_id"]
+    clean_title = re.sub(r"[^\w\s-]+", "", title).strip()[:100] or "QuickForm"
 
-    existing_form_id = request.form.get("existing_form_id", "").strip()
-    form_id = existing_form_id if existing_form_id else f"{clean_title}_{secrets.token_hex(2)}"
+    description = re.sub(r"\s+", " ", request.form.get("description", "").strip())[:500]
 
     raw_fields = request.form.getlist("custom_fields[]")
-    clean_fields = [f.strip() for f in raw_fields if f.strip() != ""]
+    clean_fields = []
+    seen = set()
 
-    if db:
-        db.collection("forms").document(form_id).set({
-            "title": clean_title,
-            "fields": clean_fields,
-            "user_id": user_id,
-            "status": "active"
-        }, merge=True)
+    for raw in raw_fields:
+        field = re.sub(r"\s+", " ", raw.strip())[:100]
+        if field and field.casefold() not in seen:
+            clean_fields.append(field)
+            seen.add(field.casefold())
 
-    form_url = f"{request.host_url}form/{form_id}"
-    wa_share_url = f"https://api.whatsapp.com/send?text=Please%20fill%20this%20form:%20{form_url}"
+    if not clean_fields:
+        return render_template(
+            "admin.html",
+            view="create",
+            is_edit=False,
+            error="Add at least one field."
+        )
+
+    unique_identifier = re.sub(r"\s+", " ", request.form.get("unique_identifier", "").strip())[:100]
+    if unique_identifier and unique_identifier.casefold() not in {f.casefold() for f in clean_fields}:
+        unique_identifier = clean_fields[0] if clean_fields else ""
+    if not unique_identifier and clean_fields:
+        unique_identifier = clean_fields[0]
+
+    existing_form_id = request.form.get("existing_form_id", "").strip()
+
+    if existing_form_id:
+        # Edit is only allowed on the logged-in user's own form.
+        form_doc = get_owned_form(existing_form_id)
+        if not form_doc:
+            return redirect("/")
+
+        form_id = existing_form_id
+    else:
+        form_id = f"{re.sub(r'[^A-Za-z0-9_-]+', '', clean_title) or 'QuickForm'}_{secrets.token_hex(3)}"
+
+    db.collection("forms").document(form_id).set({
+        "title": clean_title,
+        "fields": clean_fields,
+        "description": description,
+        "unique_identifier": unique_identifier,
+        "user_id": session["user_email"],
+        "status": "active"
+    }, merge=True)
+
+    form_url = f"{request.host_url.rstrip('/')}/form/{form_id}"
+    wa_share_url = (
+        "https://api.whatsapp.com/send?text="
+        + "Please%20fill%20this%20form:%20"
+        + form_url.replace(":", "%3A").replace("/", "%2F")
+    )
 
     return render_template(
         "admin.html",
@@ -181,119 +510,220 @@ def create_form():
 
 
 @app.route("/view-data/<form_id>")
+@admin_required
 def view_data(form_id):
-    if "user_id" not in session or not db:
+    doc = get_owned_form(form_id)
+    if not doc:
         return redirect("/")
 
-    doc = db.collection("forms").document(form_id).get()
-    if not doc.exists or doc.to_dict().get("user_id") != session["user_id"]:
-        return redirect("/")
-
-    fdata = doc.to_dict()
-    responses_ref = db.collection("forms").document(form_id).collection("responses").stream()
-    responses = [r.to_dict() for r in responses_ref]
+    data = doc.to_dict()
+    responses = [
+        r.to_dict()
+        for r in (
+            db.collection("forms")
+            .document(form_id)
+            .collection("responses")
+            .stream()
+        )
+    ]
 
     return render_template(
         "admin.html",
         view="view_data",
-        form_title=fdata.get("title"),
-        fields=fdata.get("fields", []),
+        form_title=data.get("title", form_id),
+        fields=data.get("fields", []),
         responses=responses,
-        form_id=form_id
+        form_id=form_id,
+        excel_letters=[chr(65+i) for i in range(26)] + ["A"+chr(65+i) for i in range(26)] + ["B"+chr(65+i) for i in range(26)]
     )
 
 
 @app.route("/download-excel/<form_id>")
+@admin_required
 def download_excel(form_id):
-    if "user_id" not in session or not db:
+    form_doc = get_owned_form(form_id)
+    if not form_doc:
         return redirect("/")
 
-    user_doc = db.collection("users").document(session["user_id"]).get()
-    prefix = user_doc.to_dict().get("file_prefix", "QuickForm") if user_doc.exists else "QuickForm"
+    user_doc = db.collection("users").document(session["user_email"]).get()
+    user_data = user_doc.to_dict() if user_doc.exists else {}
+    prefix = user_data.get("file_prefix", "QuickForm")
 
-    form_doc = db.collection("forms").document(form_id).get()
-    title = form_doc.to_dict().get("title", form_id) if form_doc.exists else form_id
+    form_data = form_doc.to_dict()
+    title = form_data.get("title", form_id)
 
-    responses_ref = db.collection("forms").document(form_id).collection("responses").stream()
-    data = [doc.to_dict() for doc in responses_ref]
+    data = [
+        doc.to_dict()
+        for doc in (
+            db.collection("forms")
+            .document(form_id)
+            .collection("responses")
+            .stream()
+        )
+    ]
 
     if not data:
         return "<script>alert('No data submitted yet!'); window.location.href='/';</script>"
 
-    df = pd.DataFrame(data)
+    fields = form_data.get("fields", [])
+
+    # Keep form field order in Excel, then append any legacy/orphan keys.
+    ordered_columns = list(fields)
+    extra_columns = []
+    for row in data:
+        for key in row.keys():
+            if key not in ordered_columns and key not in extra_columns:
+                extra_columns.append(key)
+
+    df = pd.DataFrame(data, columns=ordered_columns + extra_columns)
+    for column in df.columns:
+        if (
+            str(column).strip().casefold() == "name"
+            or "full name" in str(column).strip().casefold()
+            or "student name" in str(column).strip().casefold()
+            or str(column).strip().casefold().endswith(" name")
+            or str(column).strip().casefold().startswith("name ")
+        ):
+            df[column] = df[column].fillna("").map(lambda v: str(v).title() if str(v).strip() else "")
+
+    safe_prefix = re.sub(r"[^A-Za-z0-9 _.-]", "", prefix).strip() or "QuickForm"
+    safe_title = re.sub(r"[^A-Za-z0-9 _.-]", "", title).strip() or "Form"
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="Responses")
 
     output.seek(0)
-    return send_file(output, download_name=f"{prefix}_{title}.xlsx", as_attachment=True)
+
+    return send_file(
+        output,
+        download_name=f"{safe_prefix}_{safe_title}.xlsx",
+        as_attachment=True,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 
 @app.route("/toggle-status/<form_id>", methods=["POST"])
+@admin_required
 def toggle_status(form_id):
-    if "user_id" not in session or not db:
+    require_csrf()
+
+    doc = get_owned_form(form_id)
+    if not doc:
         return redirect("/")
 
-    doc_ref = db.collection("forms").document(form_id)
-    doc = doc_ref.get()
-    if doc.exists and doc.to_dict().get("user_id") == session["user_id"]:
-        curr_status = doc.to_dict().get("status", "active")
-        new_status = "closed" if curr_status == "active" else "active"
-        doc_ref.update({"status": new_status})
+    data = doc.to_dict()
+    current = data.get("status", "active")
+    new_status = "closed" if current == "active" else "active"
 
+    doc.reference.update({"status": new_status})
     return redirect("/")
 
 
 @app.route("/delete-form/<form_id>", methods=["POST"])
+@admin_required
 def delete_form(form_id):
-    if "user_id" not in session or not db:
+    require_csrf()
+
+    doc = get_owned_form(form_id)
+    if not doc:
         return redirect("/")
 
-    doc = db.collection("forms").document(form_id).get()
-    if doc.exists and doc.to_dict().get("user_id") == session["user_id"]:
-        db.collection("forms").document(form_id).delete()
+    # Delete responses too. Firestore does not automatically delete
+    # subcollections when a parent document is deleted.
+    responses_ref = (
+        db.collection("forms")
+        .document(form_id)
+        .collection("responses")
+    )
 
+    for response in responses_ref.stream():
+        response.reference.delete()
+
+    doc.reference.delete()
     return redirect("/")
 
 
+# ---------------------------------------------------------------------------
+# Public form / existing-data lookup
+# ---------------------------------------------------------------------------
+
 @app.route("/verify-data/<form_id>", methods=["POST"])
 def verify_data(form_id):
+    """Verify an identifier without ever returning stored response values.
+
+    The client receives only which fields are missing and whether a second
+    identifier is required. Existing private values never leave Firestore.
+    """
     if not db:
+        return jsonify({"found": False}), 500
+
+    form_doc = db.collection("forms").document(form_id).get()
+    if not form_doc.exists:
+        return jsonify({"found": False}), 404
+
+    form_data = form_doc.to_dict()
+    if form_data.get("status") == "closed":
+        return jsonify({"found": False, "closed": True}), 403
+
+    fields = list(form_data.get("fields", []))
+    primary = get_primary_identifier(fields, form_id)
+    if not primary:
         return jsonify({"found": False})
 
-    req_data = request.json or {}
-    p_val = req_data.get("primary", "").strip().lower()
-    s_val = req_data.get("secondary", "").strip().lower()
-
-    if not p_val:
+    payload = request.get_json(silent=True) or {}
+    primary_value = str(payload.get("primary", "")).strip()
+    secondary_value = str(payload.get("secondary", "")).strip()
+    if not primary_value:
         return jsonify({"found": False})
 
-    responses_ref = db.collection("forms").document(form_id).collection("responses").stream()
-    all_resps = [r.to_dict() for r in responses_ref]
+    secondary_field = next((field for field in fields if field != primary), None)
 
-    p_matches = []
-    for r in all_resps:
-        vals = [str(v).strip().lower() for v in r.values()]
-        if p_val in vals:
-            p_matches.append(r)
+    # First pass: count primary matches without exposing their contents.
+    normalized_primary = normalize_value(primary_value)
+    primary_matches = []
+    responses = (
+        db.collection("forms").document(form_id)
+        .collection("responses").stream()
+    )
+    for response in responses:
+        data = response.to_dict()
+        if normalize_value(data.get(primary)) == normalized_primary:
+            primary_matches.append(response)
 
-    if not p_matches:
+    if len(primary_matches) > 1 and not secondary_value:
+        return jsonify({
+            "found": False,
+            "needs_secondary": True,
+            "missing_fields": [primary, secondary_field] if secondary_field else [primary]
+        })
+
+    match_doc = None
+    if secondary_value and secondary_field:
+        normalized_secondary = normalize_value(secondary_value)
+        for response in primary_matches:
+            data = response.to_dict()
+            if normalize_value(data.get(secondary_field)) == normalized_secondary:
+                match_doc = response
+                break
+    elif len(primary_matches) == 1:
+        match_doc = primary_matches[0]
+
+    if not match_doc:
         return jsonify({"found": False})
 
-    if len(p_matches) == 1 and not s_val:
-        return jsonify({"found": True, "data": p_matches[0]})
+    # IMPORTANT: only return field names that need user input. Never return
+    # stored values, response objects, document IDs, or hidden form values.
+    stored = match_doc.to_dict()
+    missing_fields = [
+        field for field in fields
+        if not str(stored.get(field, "") or "").strip()
+    ]
 
-    if s_val:
-        s_matches = []
-        for r in p_matches:
-            vals = [str(v).strip().lower() for v in r.values()]
-            if s_val in vals:
-                s_matches.append(r)
-
-        if len(s_matches) >= 1:
-            return jsonify({"found": True, "data": s_matches[0]})
-
-    return jsonify({"found": False, "needs_secondary": True})
+    return jsonify({
+        "found": True,
+        "missing_fields": missing_fields
+    })
 
 
 @app.route("/form/<form_id>", methods=["GET", "POST"])
@@ -303,61 +733,74 @@ def student_form(form_id):
 
     form_doc = db.collection("forms").document(form_id).get()
     if not form_doc.exists:
-        return "❌ Form Not Found", 404
+        return "Form Not Found", 404
 
     form_data = form_doc.to_dict()
-    if form_data.get("status") == "closed":
-        return "<h2 style='text-align: center; color: #dc2626; margin-top: 50px;'>🔒 Submissions Closed for this Form</h2>", 403
 
-    fields = list(form_data.get("fields", []))
-    
-    # पुराना भरा हुआ फ़ील्ड ही टॉप (Index 0) बनेगा, नया फ़ील्ड नहीं!
-    primary_id = get_primary_identifier(fields, form_id)
-    if primary_id and primary_id in fields:
-        fields.remove(primary_id)
-        fields.insert(0, primary_id)
+    if form_data.get("status") == "closed":
+        return (
+            "<h2 style='text-align:center;color:#dc2626;margin-top:50px;'>"
+            "Submissions Closed for this Form</h2>"
+        ), 403
+
+    original_fields = list(form_data.get("fields", []))
+    primary_id = get_primary_identifier(original_fields, form_id)
+    display_fields = list(original_fields)
+    if primary_id in display_fields:
+        display_fields.remove(primary_id)
+        display_fields.insert(0, primary_id)
 
     if request.method == "POST":
         submission = {}
-        for idx, field in enumerate(fields):
-            val = request.form.get(f"field_{idx}", "").strip()
-            
-            # STRICT EMAIL VALIDATION
-            if "email" in field.lower() and val:
-                val = val.lower()
-                if not re.match(r"^[^@]+@[^@]+\.[^@]+$", val):
-                    return "<h2 style='text-align: center; color: #dc2626; margin-top: 50px;'>❌ Invalid Email Address! Must contain '@' and domain (e.g., name@gmail.com)</h2>", 400
+        for index, field in enumerate(display_fields):
+            value = request.form.get(f"field_{index}", "").strip()
+            if "email" in field.lower() and value:
+                value = clean_email(value)
+                if not is_valid_email(value):
+                    return (
+                        "<h2 style='text-align:center;color:#dc2626;margin-top:50px;'>"
+                        "Invalid Email Address.</h2>"
+                    ), 400
+            submission[field] = value
 
-            if "name" in field.lower():
-                val = val.title()
-            submission[field] = val
+        if not display_fields:
+            return "This form has no fields.", 400
 
-        first_val = submission.get(fields[0], "").strip().lower() if fields else ""
-        responses_ref = db.collection("forms").document(form_id).collection("responses").stream()
-        
-        match_doc = None
-        for rdoc in responses_ref:
-            rdata = rdoc.to_dict()
-            vals = [str(v).strip().lower() for v in rdata.values()]
-            if first_val and first_val in vals:
-                match_doc = rdoc
-                break
+        primary_value = submission.get(primary_id, "").strip()
+        if not primary_value:
+            return "Primary field is required.", 400
+
+        secondary_field = next((f for f in display_fields if f != primary_id), None)
+        secondary_value = submission.get(secondary_field, "").strip() if secondary_field else ""
+
+        match_doc = find_response_by_identifier(
+            form_id, primary_id, primary_value, secondary_field, secondary_value or None
+        )
+
+        responses_collection = (
+            db.collection("forms").document(form_id).collection("responses")
+        )
 
         if match_doc:
-            match_doc.reference.set(submission, merge=True)
+            update_submission = {key: value for key, value in submission.items() if str(value).strip()}
+            match_doc.reference.set(update_submission, merge=True)
         else:
-            db.collection("forms").document(form_id).collection("responses").add(submission)
+            responses_collection.add(submission)
 
-        return """
-        <div style="font-family: sans-serif; text-align: center; padding: 40px; max-width: 450px; margin: auto;">
-            <h2 style="color: #16a34a;">✅ Response Saved Successfully!</h2>
-            <p style="color: #64748b; margin-top: 10px;">Your response has been recorded.</p>
-        </div>
-        """
+        return render_template(
+            "index.html", success=True, form_title=form_data.get("title"),
+            description=form_data.get("description", ""), fields=display_fields,
+            original_fields=original_fields, form_id=form_id, done=False
+        )
 
-    return render_template("index.html", form_title=form_data.get("title"), fields=fields, form_id=form_id)
+    done = request.args.get("done") == "1"
+    return render_template(
+        "index.html", success=False, form_title=form_data.get("title"),
+        description=form_data.get("description", ""), fields=display_fields,
+        original_fields=original_fields, form_id=form_id, done=done
+    )
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)

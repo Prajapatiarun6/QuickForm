@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{{ form.title }} · QuickForm</title>
+<style>
+:root{color-scheme:light;--ink:#111827;--muted:#667085;--line:#e4e7ec;--blue:#2563eb;--blue2:#1d4ed8;--surface:rgba(255,255,255,.82)}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;font:16px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;color:var(--ink);background:radial-gradient(circle at 10% 0%,#dbeafe 0,transparent 34%),radial-gradient(circle at 90% 10%,#ede9fe 0,transparent 30%),#f5f7fb;padding:24px 16px}.shell{width:min(100%,560px);margin:0 auto}.card{background:var(--surface);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.85);border-radius:28px;padding:28px;box-shadow:0 24px 70px rgba(15,23,42,.10)}.brand{font-weight:800;letter-spacing:-.03em;font-size:20px}.eyebrow{color:var(--blue);font-weight:700;font-size:13px;margin-top:22px}.title{font-size:31px;line-height:1.12;letter-spacing:-.04em;margin:6px 0 8px}.description{color:var(--muted);margin:0 0 24px}.field{margin:0 0 16px}.field label{display:block;font-weight:650;font-size:14px;margin-bottom:7px}.field input{width:100%;height:50px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.9);padding:0 15px;font:inherit;outline:none;transition:.18s}.field input:focus{border-color:#93b4ff;box-shadow:0 0 0 4px rgba(37,99,235,.10)}.field input:disabled{background:#f4f6f8;color:#667085}.panel{margin-top:8px}.status{min-height:1px;color:var(--muted);font-size:14px;margin:2px 0 18px}.status:empty{display:none}.button{width:100%;height:50px;border:0;border-radius:15px;background:linear-gradient(180deg,var(--blue),var(--blue2));color:#fff;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 10px 24px rgba(37,99,235,.20)}.button:disabled{opacity:.6;cursor:wait}.result{margin-top:16px;text-align:center;font-weight:650}.success{display:flex;align-items:center;gap:10px;padding:14px 15px;border-radius:17px;background:#ecfdf3;color:#067647;border:1px solid #abefc6}.success svg{width:21px;flex:none}.footer{margin-top:20px;text-align:center;color:#98a2b3;font-size:12px}.hidden{display:none!important}@media(max-width:520px){body{padding:12px}.card{padding:22px;border-radius:24px}.title{font-size:28px}}
+</style>
+</head>
+<body>
+<main class="shell"><section class="card">
+<div class="brand">QuickForm</div>
+<div class="eyebrow">{{ form.title }}</div>
+<h1 class="title">Response form</h1>
+{% if form.description %}<p class="description">{{ form.description }}</p>{% endif %}
+<form id="form" novalidate>
+<div id="primary-panel" class="panel">
+  <div class="field"><label for="primary">{{ form.fields[0] }}</label><input id="primary" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="500"></div>
+</div>
+<div id="secondary-panel" class="panel hidden">
+  <div class="field"><label id="secondary-label" for="secondary">{{ form.fields[1] if form.fields|length > 1 else 'Second identifier' }}</label><input id="secondary" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="500"></div>
+</div>
+<div id="status" class="status" aria-live="polite"></div>
+<div id="fields-panel" class="panel hidden"></div>
+<button id="submit" class="button hidden" type="submit">Save response</button>
+</form>
+<div id="result" class="result" role="status" aria-live="polite"></div>
+</section><div class="footer">QuickForm</div></main>
+<script>
+const formId={{ form_id|tojson }};
+const fields={{ form.fields|tojson }};
+const primary=document.getElementById('primary');
+const secondary=document.getElementById('secondary');
+const secondaryPanel=document.getElementById('secondary-panel');
+const secondaryLabel=document.getElementById('secondary-label');
+const fieldsPanel=document.getElementById('fields-panel');
+const submit=document.getElementById('submit');
+const status=document.getElementById('status');
+const result=document.getElementById('result');
+let generation=0,timer=null,controller=null,verifiedState=null;
+
+function clearDynamic(){fieldsPanel.replaceChildren();fieldsPanel.classList.add('hidden');submit.classList.add('hidden');result.textContent='';verifiedState=null;}
+function setStatus(text){status.textContent=text;}
+function resetVerification(){generation++;controller?.abort();clearTimeout(timer);clearDynamic();secondaryPanel.classList.add('hidden');secondary.value='';setStatus('');}
+function addInput(fieldName, value=''){const wrap=document.createElement('div');wrap.className='field';const label=document.createElement('label');label.textContent=fieldName;const input=document.createElement('input');input.dataset.field=fieldName;input.maxLength=500;input.autocomplete='off';input.value=value;wrap.append(label,input);fieldsPanel.append(wrap);}
+function showFields(list){fieldsPanel.replaceChildren();for(const field of list)addInput(field);fieldsPanel.classList.remove('hidden');submit.classList.remove('hidden');}
+function requiredListForNew(){return fields;}
+async function verify(){
+ const current=++generation;controller?.abort();controller=new AbortController();clearDynamic();
+ const p=primary.value.trim();if(!p){setStatus('');return;}
+ setStatus('');
+ try{
+  const body={primary:p,secondary:secondary.value.trim()};
+  const r=await fetch('/api/verify/'+encodeURIComponent(formId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
+  const data=await r.json();if(current!==generation)return;if(!r.ok)throw new Error(data.error||'Verification failed.');
+  if(data.state==='verify_secondary'){
+    if(current!==generation)return;secondaryLabel.textContent=data.secondary_field||'Second identifier';secondaryPanel.classList.remove('hidden');setStatus('');secondary.focus();return;
+  }
+  if(data.state==='new'){verifiedState={kind:'new',fields:data.fields};showFields(data.fields);return;}
+  if(data.state==='existing'){verifiedState={kind:'existing',fields:data.fields};showFields(data.fields);return;}
+  if(data.state==='complete'){
+    verifiedState={kind:'complete',fields:[]};setStatus('');result.innerHTML='<div class="success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="m8 12 2.5 2.5L16 9"></path></svg><span>All details are up to date.</span></div>';return;
+  }
+ }catch(e){if(e.name!=='AbortError'&&current===generation){clearDynamic();setStatus('');result.textContent='Could not verify right now. Please try again.')}}
+}
+function schedulePrimaryVerify(){resetVerification();timer=setTimeout(verify,420)}
+function scheduleSecondaryVerify(){if(secondaryPanel.classList.contains('hidden'))return;generation++;controller?.abort();clearTimeout(timer);clearDynamic();timer=setTimeout(verify,420)}
+primary.addEventListener('input',schedulePrimaryVerify);secondary.addEventListener('input',scheduleSecondaryVerify);
+
+// The first two fields are identifiers, not data that the client may overwrite. The backend
+// decides which fields are missing and returns only their names. No existing values are fetched.
+document.getElementById('form').addEventListener('submit',async e=>{
+ e.preventDefault();if(!verifiedState||verifiedState.kind==='complete')return;
+ const values={[fields[0]]:primary.value.trim()};if(fields.length>1&&secondary.value.trim())values[fields[1]]=secondary.value.trim();
+ for(const input of fieldsPanel.querySelectorAll('input[data-field]'))values[input.dataset.field]=input.value.trim();
+ const missing=verifiedState.fields.filter(f=>!values[f]);if(missing.length){result.textContent='Please complete the new fields.';return}
+ submit.disabled=true;result.textContent='Saving…';
+ try{const r=await fetch('/api/submit/'+encodeURIComponent(formId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({values})});const data=await r.json();if(!r.ok)throw new Error(data.error||'Save failed.');result.innerHTML='<div class="success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="m8 12 2.5 2.5L16 9"></path></svg><span>Response saved successfully.</span></div>';clearDynamic();setStatus('');}
+ catch(err){result.textContent=err.message}finally{submit.disabled=false}
+});
+</script>
+</body></html>

@@ -1,190 +1,51 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ form_title }}</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background: #f1f5f9; padding: 15px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: white; padding: 25px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); width: 100%; max-width: 440px; border: 1px solid #e2e8f0; }
-        h2 { color: #1e3a8a; margin-bottom: 20px; text-align: center; font-size: 1.3rem; font-weight: 800; }
-        .form-group { margin-bottom: 14px; }
-        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; color: #334155; }
-        input[type="text"] { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 15px; outline: none; }
-        input:focus { border-color: #2563eb; }
-        .btn-submit { width: 100%; background: #1e3a8a; color: white; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .status-msg { font-size: 12px; font-weight: 600; margin-top: 5px; min-height: 18px; }
-        .new-field-badge { display: inline-block; background: #dcfce7; color: #15803d; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-bottom: 4px; }
-    </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0f172a"><title>{{ form_title }}</title><link rel="icon" type="image/svg+xml" href="/static/quickform-logo.svg">
+<style>
+:root{--bg:#f4f7fb;--card:rgba(255,255,255,.88);--ink:#101828;--muted:#667085;--line:#e4e7ec;--blue:#2563eb;--green:#16a34a;--shadow:0 22px 60px rgba(15,23,42,.1)}*{box-sizing:border-box}body{margin:0;min-height:100vh;padding:18px;background:radial-gradient(circle at 15% 0,#dbeafe 0,transparent 34%),radial-gradient(circle at 100% 15%,#ede9fe 0,transparent 28%),var(--bg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;color:var(--ink)}.shell{width:min(640px,100%);margin:3vh auto;min-height:94vh;display:flex;align-items:center}.card{width:100%;background:var(--card);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.78);border-radius:30px;padding:34px;box-shadow:var(--shadow)}.brand{display:flex;justify-content:center;align-items:center;gap:9px;font-weight:900;font-size:20px}.mark{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#7c3aed);box-shadow:0 10px 25px rgba(37,99,235,.24)}.mark img{width:28px;height:28px;display:block}.title{text-align:center;font-size:32px;line-height:1.15;letter-spacing:-.8px;margin:18px 0 7px}.sub{text-align:center;color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 26px}.group{margin-bottom:17px}.label{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:850;color:#475467;margin-bottom:7px}.label .dot{width:6px;height:6px;border-radius:50%;background:#2563eb}.input{width:100%;height:54px;border:1px solid #d0d5dd;border-radius:15px;background:rgba(255,255,255,.94);padding:0 16px;font-size:17px;outline:none;color:var(--ink);transition:.18s}.input:focus{border-color:#84adff;box-shadow:0 0 0 4px rgba(37,99,235,.1)}.input:disabled{background:#f8fafc}.status{min-height:0;margin-top:7px;font-size:13px;font-weight:800;line-height:1.4}.submit{width:100%;height:54px;border:0;border-radius:15px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:15px;font-weight:850;cursor:pointer;box-shadow:0 10px 25px rgba(37,99,235,.22);margin-top:8px}.submit:disabled{opacity:.65;cursor:not-allowed}.verified{display:none}.done-screen{width:min(640px,100%);margin:12vh auto}.done-card{background:rgba(255,255,255,.94);border:1px solid rgba(255,255,255,.9);border-radius:30px;padding:42px 34px;text-align:center;box-shadow:var(--shadow)}.success-check{width:68px;height:68px;margin:0 auto 16px;border-radius:23px;display:grid;place-items:center;background:#ecfdf3;color:#16a34a}.success-check svg{width:34px}.done-title{font-size:28px;font-weight:900;margin:0 0 8px}.done-text{color:var(--muted);font-size:14px;margin:0}.success-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(15,23,42,.58);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:50}.success-modal.show{display:flex}.success-panel{width:min(480px,100%);background:rgba(255,255,255,.98);border:1px solid rgba(255,255,255,.9);border-radius:30px;padding:34px;text-align:center;box-shadow:0 28px 80px rgba(15,23,42,.25)}.success-title{font-size:26px;font-weight:900;letter-spacing:-.5px;margin:0 0 7px}.success-text{color:#667085;font-size:14px;line-height:1.5;margin:0 0 20px}.success-actions{display:grid;gap:9px}.success-close,.success-another{width:100%;height:50px;border:0;border-radius:15px;font-weight:850;font-size:15px;cursor:pointer}.success-close{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center}.success-another{background:#eef2f6;color:#344054;text-decoration:none;display:flex;align-items:center;justify-content:center}@media(max-width:700px){body{padding:10px}.shell{margin:1vh auto;min-height:98vh}.card{padding:25px 20px;border-radius:25px}.title{font-size:27px}.input,.submit{height:52px}.done-screen{margin:8vh auto}.done-card{padding:34px 22px}}
+<style>
+/* Targeted student-form readability/state fixes only. */
+.label .dot{display:none}
+.group.new-field .label .dot{display:inline-block;background:#16a34a}
+.new-field-note{margin:8px 0 10px;padding:10px 12px;border-radius:12px;background:#ecfdf3;color:#15803d;font-size:14px;font-weight:750;line-height:1.45}
+.label{font-size:15px}
+.input{font-size:18px}
+.status{font-size:14px}
+@media(max-width:700px){.card{padding:24px 18px}.title{font-size:29px}.sub{font-size:15px}.label{font-size:15px}.input{font-size:17px;height:54px}.submit{font-size:16px}}
+</style>
+</style>
 </head>
 <body>
-    <div class="card">
-        <h2>{{ form_title }}</h2>
-
-        <form id="student-form" method="POST" action="/form/{{ form_id }}">
-            {% for field in fields %}
-            <div class="form-group" id="group_{{ loop.index0 }}">
-                <label id="label_{{ loop.index0 }}">{{ field }}</label>
-                <input type="text" 
-                       name="field_{{ loop.index0 }}" 
-                       id="input_{{ loop.index0 }}" 
-                       placeholder="Enter {{ field }}" 
-                       required>
-                {% if loop.first %}
-                <div id="status-msg" class="status-msg"></div>
-                {% endif %}
-            </div>
-            {% endfor %}
-            <button type="submit" class="btn-submit">Submit Details</button>
-        </form>
-    </div>
-
-    <script>
-        const firstInput = document.getElementById('input_0');
-        const secondInput = document.getElementById('input_1');
-        const statusMsg = document.getElementById('status-msg');
-        const allInputs = Array.from(document.querySelectorAll('input[name^="field_"]'));
-        const fieldsList = {{ fields | tojson }};
-        let isMultipleMatches = false;
-
-        function resetVisibility() {
-            fieldsList.forEach((_, index) => {
-                const groupEl = document.getElementById(`group_${index}`);
-                if (groupEl) groupEl.style.display = 'block';
-                const labelEl = document.getElementById(`label_${index}`);
-                if (labelEl) labelEl.innerHTML = fieldsList[index];
-            });
-            if (statusMsg) statusMsg.innerText = "";
-        }
-
-        function checkPrimary(pVal) {
-            if (!pVal) {
-                resetVisibility();
-                isMultipleMatches = false;
-                return;
-            }
-            fetch('/verify-data/{{ form_id }}', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ primary: pVal })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.found) {
-                    fillFormAndHideFilled(data.data);
-                    isMultipleMatches = false;
-                } else if (data.needs_secondary) {
-                    isMultipleMatches = true;
-                    if (statusMsg) {
-                        statusMsg.style.color = "#d97706";
-                        statusMsg.innerText = "⚠️ Multiple records match! Fill next detail to verify.";
-                    }
-                } else {
-                    resetVisibility();
-                    isMultipleMatches = false;
-                }
-            });
-        }
-
-        function checkSecondary() {
-            if (!isMultipleMatches || !firstInput) return;
-            const pVal = firstInput.value.trim();
-            const sVal = secondInput ? secondInput.value.trim() : "";
-            if (!pVal || !sVal) return;
-
-            fetch('/verify-data/{{ form_id }}', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ primary: pVal, secondary: sVal })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.found) {
-                    fillFormAndHideFilled(data.data);
-                    isMultipleMatches = false;
-                }
-            });
-        }
-
-        function fillFormAndHideFilled(dataDict) {
-            const normData = {};
-            if (dataDict && typeof dataDict === 'object') {
-                Object.keys(dataDict).forEach(k => {
-                    normData[k.trim().toLowerCase()] = dataDict[k];
-                });
-            }
-
-            let hasNewFields = false;
-
-            fieldsList.forEach((field, index) => {
-                const inputEl = document.getElementById(`input_${index}`);
-                const groupEl = document.getElementById(`group_${index}`);
-                const normField = field.trim().toLowerCase();
-
-                const val = normData[normField];
-
-                // Index 0 (Unique Identifier) stays visible
-                if (index === 0) {
-                    if (groupEl) groupEl.style.display = 'block';
-                    return;
-                }
-
-                // If existing field has filled data in DB -> HIDE IT COMPLETELY!
-                if (val !== undefined && val !== null && val.toString().trim() !== "") {
-                    if (inputEl) inputEl.value = val;
-                    if (groupEl) groupEl.style.display = 'none';
-                } else {
-                    // SHOW ONLY NEW UNFILLED FIELDS WITH GREEN BADGE
-                    if (groupEl) groupEl.style.display = 'block';
-                    const labelEl = document.getElementById(`label_${index}`);
-                    if (labelEl && !labelEl.innerHTML.includes('NEW FIELD')) {
-                        labelEl.innerHTML = `<span class="new-field-badge">🟢 NEW FIELD TO FILL</span><br>${field}`;
-                    }
-                    hasNewFields = true;
-                }
-            });
-
-            if (statusMsg) {
-                statusMsg.style.color = "#16a34a";
-                if (hasNewFields) {
-                    statusMsg.innerText = "✓ Data Fetched! Old details hidden, fill new field(s) below:";
-                } else {
-                    statusMsg.innerText = "✓ All details verified! Old fields hidden.";
-                }
-            }
-        }
-
-        if (firstInput) {
-            firstInput.addEventListener('blur', function() {
-                checkPrimary(this.value.trim());
-            });
-        }
-
-        if (secondInput) {
-            secondInput.addEventListener('blur', checkSecondary);
-            secondInput.addEventListener('keyup', checkSecondary);
-        }
-
-        allInputs.forEach((input, index) => {
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-
-                    if (index === 0) {
-                        checkPrimary(this.value.trim());
-                    } else if (index === 1 && isMultipleMatches) {
-                        checkSecondary();
-                    }
-
-                    if (index < allInputs.length - 1) {
-                        allInputs[index + 1].focus();
-                    } else {
-                        document.getElementById('student-form').submit();
-                    }
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+{% if done %}
+<div class="done-screen"><div class="done-card"><div class="success-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 12 4 4L19 6"/></svg></div><h1 class="done-title">You're done</h1><p class="done-text">Your response has been saved successfully.</p></div></div>
+{% else %}
+<div class="shell"><div class="card">
+<div class="brand"><div class="mark"><img src="/static/quickform-logo.svg" alt="QuickForm"></div>QuickForm</div>
+<h1 class="title">{{ form_title }}</h1>{% if description %}<p class="sub">{{ description }}</p>{% endif %}
+<form id="student-form" method="POST" action="/form/{{ form_id }}">
+{% for field in fields %}<div class="group" id="group_{{ loop.index0 }}"><label class="label" id="label_{{ loop.index0 }}"><span class="dot"></span><span>{{ field }}</span></label><input class="input" type="text" name="field_{{ loop.index0 }}" id="input_{{ loop.index0 }}" placeholder="Enter Here" required autocomplete="off">{% if loop.first %}<div id="status-msg" class="status"></div>{% endif %}</div>{% endfor %}
+<button class="submit" id="submit-btn" type="submit">Submit Details</button>
+</form>
+</div></div>
+{% if success %}<div class="success-modal show" id="success-modal" role="dialog" aria-modal="true"><div class="success-panel"><div class="success-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 12 4 4L19 6"/></svg></div><h2 class="success-title">Form submitted</h2><p class="success-text">Your response has been saved successfully.</p><div class="success-actions"><a class="success-close" href="/form/{{ form_id }}">Fill another form</a><a class="success-another" href="/form/{{ form_id }}?done=1">Done</a></div></div></div>{% endif %}
+<script>
+const form=document.getElementById('student-form');
+const firstInput=document.getElementById('input_0');
+const statusMsg=document.getElementById('status-msg');
+const submitBtn=document.getElementById('submit-btn');
+const allInputs=Array.from(document.querySelectorAll('input[name^="field_"]'));
+const fieldsList={{ fields|tojson }};
+let isMultipleMatches=false,checking=false,requestSeq=0,recordVerified=false;
+function setStatus(m,c='#16a34a'){if(statusMsg){statusMsg.style.color=c;statusMsg.textContent=m}}
+function resetVisibility(){document.querySelectorAll('.new-field-note').forEach(n=>n.remove());fieldsList.forEach((field,i)=>{const g=document.getElementById(`group_${i}`),input=document.getElementById(`input_${i}`);if(g){g.style.display='block';g.classList.remove('new-field')}if(input){input.disabled=false;input.required=true}});setStatus('');isMultipleMatches=false;recordVerified=false;submitBtn.disabled=false;submitBtn.textContent='Submit Details'}
+function applyMissingFields(missingFields,needsSecondary=false){const missing=new Set((missingFields||[]).map(v=>String(v).trim().toLowerCase()));document.querySelectorAll('.new-field-note').forEach(n=>n.remove());fieldsList.forEach((field,i)=>{const g=document.getElementById(`group_${i}`),input=document.getElementById(`input_${i}`);if(!g||!input)return;g.classList.remove('new-field');const isPrimary=i===0;const isSecondary=i===1&&needsSecondary;const needsInput=missing.has(field.trim().toLowerCase());if(isPrimary||isSecondary||needsInput){g.style.display='block';input.disabled=false;input.required=true;if(needsInput){g.classList.add('new-field')}}else{g.style.display='none';input.disabled=true;input.required=false}});const firstMissingIndex=fieldsList.findIndex(field=>missing.has(field.trim().toLowerCase()));if(firstMissingIndex>=0){const g=document.getElementById(`group_${firstMissingIndex}`);const note=document.createElement('div');note.className='new-field-note';note.textContent='A new field has been added. Please fill in the new field.';const input=document.getElementById(`input_${firstMissingIndex}`);g.insertBefore(note,input)}setStatus('');if(missing.length===0&&!needsSecondary){recordVerified=true;submitBtn.disabled=true}else{recordVerified=false;submitBtn.disabled=false}}
+async function checkPrimary(pVal){if(!pVal){resetVisibility();return null}const seq=++requestSeq;checking=true;try{const r=await fetch('/verify-data/{{ form_id }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({primary:pVal})});const data=await r.json();if(seq!==requestSeq)return null;if(data.found){isMultipleMatches=false;applyMissingFields(data.missing_fields||[]);return'found'}if(data.needs_secondary){isMultipleMatches=true;applyMissingFields(data.missing_fields||[],true);return'multiple'}resetVisibility();return'none'}catch(e){if(seq===requestSeq)setStatus('');return'error'}finally{if(seq===requestSeq)checking=false}}
+async function checkSecondary(){if(!isMultipleMatches)return false;const second=document.getElementById('input_1'),p=firstInput?.value.trim(),s=second?.value.trim();if(!p||!s)return false;const seq=++requestSeq;checking=true;try{const r=await fetch('/verify-data/{{ form_id }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({primary:p,secondary:s})});const data=await r.json();if(seq!==requestSeq)return false;if(data.found){isMultipleMatches=false;applyMissingFields(data.missing_fields||[]);return true}return false}catch(e){return false}finally{if(seq===requestSeq)checking=false}}
+function nextVisible(i){for(let x=i+1;x<allInputs.length;x++){const g=document.getElementById(`group_${x}`),input=allInputs[x];if(g&&g.style.display!=='none'&&!input.disabled)return input}return null}
+allInputs.forEach((input,index)=>input.addEventListener('keydown',async e=>{if(e.key!=='Enter')return;e.preventDefault();if(index===0){const v=input.value.trim();if(!v){input.reportValidity();return}await checkPrimary(v);const n=nextVisible(0);if(n){n.focus();n.scrollIntoView({behavior:'smooth',block:'center'})}return}if(index===1&&isMultipleMatches){if(await checkSecondary()){const n=nextVisible(1);n?.focus()}return}const n=nextVisible(index);if(n){n.focus();n.scrollIntoView({behavior:'smooth',block:'center'})}else if(form.checkValidity())form.requestSubmit();else form.reportValidity()}));
+if(firstInput)firstInput.addEventListener('blur',()=>{const value=firstInput.value.trim();if(value)checkPrimary(value)});
+form.addEventListener('submit',e=>{if(recordVerified){e.preventDefault();return}if(!form.checkValidity()){e.preventDefault();form.reportValidity();return}if(checking){e.preventDefault();return}submitBtn.disabled=true;submitBtn.textContent='Saving…'});
+</script>
+{% endif %}
+</body></html>
