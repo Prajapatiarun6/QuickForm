@@ -52,6 +52,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=bool(os.environ.get("VERCEL")),
+    PERMANENT_SESSION_LIFETIME=60 * 60 * 24 * 30,
     MAX_CONTENT_LENGTH=2 * 1024 * 1024,
 )
 
@@ -284,6 +285,7 @@ def firebase_session():
             user_ref.set({"auth_provider": "google"}, merge=True)
 
         session.clear()
+        session.permanent = True
         session["user_email"] = email
         session["_csrf_token"] = secrets.token_urlsafe(32)
         return jsonify({"ok": True})
@@ -399,6 +401,7 @@ def login():
     sync_firebase_password(email, password)
 
     session.clear()
+    session.permanent = True
     session["user_email"] = email
     session["_csrf_token"] = secrets.token_urlsafe(32)
     return redirect("/")

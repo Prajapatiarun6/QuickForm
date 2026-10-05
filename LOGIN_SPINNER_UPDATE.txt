@@ -1,1 +1,0 @@
-Only templates/login.html changed. To update your existing working project, replace just that file. Do not overwrite your Firebase configuration or environment settings.
